@@ -1,0 +1,15 @@
+fastapi
+uvicorn
+pymongo
+pymysql
+sqlalchemy
+requests
+playwright
+beautifulsoup4
+markdownify
+python-dateutil
+trafilatura
+openai
+anthropic
+apscheduler
+python-dotenv

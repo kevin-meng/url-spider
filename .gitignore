@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+.DS_Store
+venv/
+url-to-markdown/node_modules/
+url-to-markdown/

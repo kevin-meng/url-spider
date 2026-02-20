@@ -1,0 +1,574 @@
+{
+  "general_settings": {
+    "betaFeatures": false,
+    "legacyMode": false,
+    "openBehavior": "popup",
+    "saveBehavior": "addToObsidian",
+    "showMoreActionsButton": false,
+    "silentOpen": true
+  },
+  "highlighter_settings": {
+    "alwaysShowHighlights": true,
+    "highlightBehavior": "highlight-inline",
+    "highlighterEnabled": true
+  },
+  "interpreter_settings": {
+    "defaultPromptContext": "",
+    "interpreterAutoRun": true,
+    "interpreterEnabled": true,
+    "interpreterModel": "1765124835919",
+    "models": [
+      {
+        "enabled": true,
+        "id": "1765124835919",
+        "name": "Qwen/Qwen2.5-Coder-32B-Instruct",
+        "providerId": "1765124726396",
+        "providerModelId": "Qwen/Qwen2.5-Coder-32B-Instruct"
+      }
+    ],
+    "providers": [
+      {
+        "apiKey": "",
+        "apiKeyRequired": true,
+        "baseUrl": "https://api.deepseek.com/v1/chat/completions",
+        "id": "1764386961414",
+        "name": "DeepSeek"
+      },
+      {
+        "apiKey": "ms-dbe1f382-705a-4032-ad61-3c09a02e42cc",
+        "apiKeyRequired": true,
+        "baseUrl": "https://api-inference.modelscope.cn/v1/",
+        "id": "1765124726396",
+        "name": "魔塔api"
+      }
+    ]
+  },
+  "migrationVersion": 1,
+  "property_types": [
+    {
+      "defaultValue": "{{title}}",
+      "name": "title",
+      "type": "text"
+    },
+    {
+      "defaultValue": "{{url}}",
+      "name": "source",
+      "type": "text"
+    },
+    {
+      "defaultValue": "{{author|split:\", \"|wikilink|join}}",
+      "name": "author",
+      "type": "multitext"
+    },
+    {
+      "defaultValue": "{{published}}",
+      "name": "published",
+      "type": "date"
+    },
+    {
+      "defaultValue": "{{date}}",
+      "name": "created",
+      "type": "date"
+    },
+    {
+      "defaultValue": "{{description}}",
+      "name": "description",
+      "type": "text"
+    },
+    {
+      "defaultValue": "clippings",
+      "name": "tags",
+      "type": "multitext"
+    },
+    {
+      "name": "TODO",
+      "type": "text"
+    },
+    {
+      "name": "notes",
+      "type": "text"
+    },
+    {
+      "name": "概要",
+      "type": "text"
+    },
+    {
+      "name": "相关问题",
+      "type": "text"
+    },
+    {
+      "name": "人物",
+      "type": "text"
+    },
+    {
+      "name": "书籍",
+      "type": "text"
+    },
+    {
+      "name": "组织公司",
+      "type": "text"
+    },
+    {
+      "name": "概念实体",
+      "type": "text"
+    },
+    {
+      "name": "地点",
+      "type": "text"
+    },
+    {
+      "name": "事件",
+      "type": "text"
+    },
+    {
+      "name": "产品服务",
+      "type": "text"
+    },
+    {
+      "name": "标星",
+      "type": "number"
+    },
+    {
+      "name": "是否已读",
+      "type": "checkbox"
+    },
+    {
+      "defaultValue": "{{selector:.RichContent-actions .VoteButton--up}}",
+      "name": "agreeCount",
+      "type": "text"
+    }
+  ],
+  "reader_settings": {
+    "fontSize": 1.5,
+    "lineHeight": 1.6,
+    "maxWidth": 38,
+    "theme": "default",
+    "themeMode": "auto"
+  },
+  "stats": {
+    "addToObsidian": 406,
+    "copyToClipboard": 0,
+    "saveFile": 2,
+    "share": 0
+  },
+  "template_17641814671660kno01p6y": {
+    "id": "17641814671660kno01p6y",
+    "name": "通用",
+    "behavior": "create",
+    "noteNameFormat": "{{date|date:\"YYYY-MM-DD\"}}｜{{title}}",
+    "path": "inbox",
+    "noteContentFormat": "{{content}}",
+    "context": "",
+    "properties": [
+      {
+        "id": "1764181467166rap2rm714",
+        "name": "title",
+        "value": "{{title}}",
+        "type": "text"
+      },
+      {
+        "id": "17641814671664uof3zm2m",
+        "name": "source",
+        "value": "{{url}}",
+        "type": "text"
+      },
+      {
+        "id": "1764181467166cbda102m7",
+        "name": "author",
+        "value": "{{author|split:\\\", \\\"|wikilink|join}}",
+        "type": "multitext"
+      },
+      {
+        "id": "1764181467166uvpykjmae",
+        "name": "published",
+        "value": "{{published}}",
+        "type": "date"
+      },
+      {
+        "id": "1764181467166zpxszdkuk",
+        "name": "created",
+        "value": "{{date}}",
+        "type": "date"
+      },
+      {
+        "id": "1764181467166zb51fo520",
+        "name": "description",
+        "value": "{{description}}",
+        "type": "text"
+      },
+      {
+        "id": "17641814671669r46oq6ba",
+        "name": "tags",
+        "value": "clippings",
+        "type": "multitext"
+      },
+      {
+        "id": "1764778003075ch0zq7eq4",
+        "name": "TODO",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "17647780079119awscp63b",
+        "name": "notes",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125025441e47f4mfow",
+        "name": "概要",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125038430apwx5q3wu",
+        "name": "相关问题",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125125324nt48qoc9s",
+        "name": "人物",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125138730sy183wmt0",
+        "name": "书籍",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125148540km5jgu1i4",
+        "name": "组织公司",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125150292ggoa8kwn6",
+        "name": "概念实体",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125158620m4moybbcg",
+        "name": "地点",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125162912mp65jeojy",
+        "name": "事件",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1765125167190j50ehkdzf",
+        "name": "产品服务",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "17651285979372ovv2geep",
+        "name": "标星",
+        "value": "",
+        "type": "number"
+      },
+      {
+        "id": "1765128812830al21mn5f3",
+        "name": "是否已读",
+        "value": "",
+        "type": "checkbox"
+      }
+    ],
+    "triggers": []
+  },
+  "template_1766064573055g7u0npf": {
+    "schemaVersion": "0.1.0",
+    "name": "知乎回答",
+    "behavior": "create",
+    "noteContentFormat": "{{selectorHtml:.RichContent-inner| remove_tags:\"a\" |markdown|slice:4|split:\"\\\",\\\"\"|slice:0,1}}",
+    "properties": [
+      {
+        "id": "1766064573069fblvkr0",
+        "name": "title",
+        "value": "{{title}}",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069t6ub7hu",
+        "name": "source",
+        "value": "{{url}}",
+        "type": "text"
+      },
+      {
+        "id": "176606457306948tuqqo",
+        "name": "author",
+        "value": "{{selector:.UserLink-link|slice:1,2}}",
+        "type": "multitext"
+      },
+      {
+        "id": "1766064573069m79iytq",
+        "name": "published",
+        "value": "{{selector:.QuestionAnswer-content .ContentItem-time span}}",
+        "type": "date"
+      },
+      {
+        "id": "1766064573069igjars5",
+        "name": "agreeCount",
+        "value": "{{selector:.RichContent-actions .VoteButton--up}}",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069wrubswa",
+        "name": "created",
+        "value": "{{date}}",
+        "type": "date"
+      },
+      {
+        "id": "1766064573069d7s2pcy",
+        "name": "description",
+        "value": "{{description}}",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069pbhvk7a",
+        "name": "tags",
+        "value": "clippings",
+        "type": "multitext"
+      },
+      {
+        "id": "1766064573069jvu78nv",
+        "name": "TODO",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069io88ril",
+        "name": "notes",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069s65odhj",
+        "name": "概要",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "17660645730698wtunlo",
+        "name": "相关问题",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069wpa6w4z",
+        "name": "人物",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069nxsblh2",
+        "name": "书籍",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069b4tpiap",
+        "name": "组织公司",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069ouxft5q",
+        "name": "概念实体",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "176606457306917wskug",
+        "name": "地点",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069v5nt8sb",
+        "name": "事件",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "17660645730690h4um3h",
+        "name": "产品服务",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766064573069phxe8tj",
+        "name": "标星",
+        "value": "",
+        "type": "number"
+      },
+      {
+        "id": "1766064573069rsw2pyg",
+        "name": "是否已读",
+        "value": "",
+        "type": "checkbox"
+      }
+    ],
+    "triggers": [
+      "https://www.zhihu.com/question/*/answer"
+    ],
+    "noteNameFormat": "{{date|date:\"YYYY-MM-DD\"}}｜{{title|replace:\" - 知乎\":\"\"}}",
+    "path": "inbox",
+    "id": "1766064573055g7u0npf",
+    "context": ""
+  },
+  "template_1766065019281achnfq5": {
+    "schemaVersion": "0.1.0",
+    "name": "知乎专栏",
+    "behavior": "create",
+    "noteContentFormat": "{{selectorHtml:.RichText|first|replace:\"href=\\\"https\\://zhida\":\"\"|markdown}}",
+    "properties": [
+      {
+        "id": "1766065019282p0oihyk",
+        "name": "title",
+        "value": "{{title}}",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282p25jyni",
+        "name": "source",
+        "value": "{{url}}",
+        "type": "text"
+      },
+      {
+        "id": "17660650192820csziob",
+        "name": "author",
+        "value": "{{selector:.UserLink-link|slice:1,2}}",
+        "type": "multitext"
+      },
+      {
+        "id": "1766065019282lojvzlq",
+        "name": "published",
+        "value": "{{selector:.QuestionAnswer-content .ContentItem-time span}}",
+        "type": "date"
+      },
+      {
+        "id": "176606501928213qyfcq",
+        "name": "agreeCount",
+        "value": "{{selector:.RichContent-actions .VoteButton--up}}",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282ntcwv78",
+        "name": "created",
+        "value": "{{date}}",
+        "type": "date"
+      },
+      {
+        "id": "1766065019282737a5q2",
+        "name": "description",
+        "value": "{{description}}",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282k6az2qt",
+        "name": "tags",
+        "value": "clippings",
+        "type": "multitext"
+      },
+      {
+        "id": "1766065019282ak447s6",
+        "name": "TODO",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282ue6g7qf",
+        "name": "notes",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282r2wahzy",
+        "name": "概要",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282yo4z83z",
+        "name": "相关问题",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "17660650192823nsrw0e",
+        "name": "人物",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282zxgmpek",
+        "name": "书籍",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282kgv5dz7",
+        "name": "组织公司",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282m31xqrd",
+        "name": "概念实体",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282ip8wm0f",
+        "name": "地点",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282l6zesbn",
+        "name": "事件",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282e09z66o",
+        "name": "产品服务",
+        "value": "",
+        "type": "text"
+      },
+      {
+        "id": "1766065019282pdi15o9",
+        "name": "标星",
+        "value": "",
+        "type": "number"
+      },
+      {
+        "id": "1766065019282r0pzh1w",
+        "name": "是否已读",
+        "value": "",
+        "type": "checkbox"
+      }
+    ],
+    "triggers": [
+      "https://zhuanlan.zhihu.com/p"
+    ],
+    "noteNameFormat": "{{date|date:\"YYYY-MM-DD\"}}｜{{title|replace:\" - 知乎\":\"\"}}",
+    "path": "inbox",
+    "id": "1766065019281achnfq5",
+    "context": ""
+  },
+  "template_list": [
+    "17641814671660kno01p6y",
+    "1766065019281achnfq5",
+    "1766064573055g7u0npf"
+  ],
+  "vaults": []
+}

@@ -1,0 +1,87 @@
+现在我想对我的整个项目流程做一个拆解，把它做成docker服务部署在我的NAS机器上。
+第1步，3个接口 
+1. 接口1: 提供一个接口，这个接口是输入传入一个URL链接，然后获得对应转换好的含有元数据+全文内容的Markdown的文本的json。
+2. 接口2: 传入含有元数据+全文内容的Markdown的文本，接口返回对应的json 数据。 字段包含输入的元数据和全文内容。
+3. 接口3: 一次传入50篇文章标题+文章表述的字段，根据我的价值度模型，返回每个文章的标题，价值度评分和文章类型标签，预筛原因（1句话）？ josn。
+
+接口3的AI接口提示词为：
+
+你是一位文章价值评估助手。我的核心价值领域包括：
+- 金融风控技能（模型、算法、风险管理）
+- 创业领导力与投资认知
+- 写作《AI提升效率》《向AI学习》《数据挖掘案例》《金融风控大全》书稿
+- 会作为我的头马俱乐部演讲素材
+- 个人心理成长与终身学习（认知提升、心理韧性，自信）
+
+任务：一次性接收几十篇文章含title, description），为每篇输出：
+- title
+- pre_value_score（1-10，基于领域相关性、实用性、新颖性）
+- article_type（从预定义列表选，可多选）
+- pre_value_score_reason（一句话说明价值或排除原因）
+标签列表：["旅行","娱乐","灵感创意","方法论","工作思考","投资","健康","摘录","世界观","美食","金融","心理学","个人成长","科技","数据挖掘","AI","人工智能","编程","理财"]
+
+输入JSON格式：[{"title":"...","description":"..."}, ...]
+输出JSON格式：{"articles":[{"title":"...","pre_value_score":5,"article_type":["AI","方法论"],"pre_value_score_reason":"..."}, ...]}
+
+规则：
+1. 仅输出JSON，无额外文字。
+2. 无关文章pre_value_score≤1，原因简明。
+3. 标签严格从列表选择。
+4. 确保JSON有效。
+
+--------
+
+
+第2步 3个定时任务：
+第1个： 每半小时执行一次，从mysql中读取url批量的， 
+每次处理每个url的时候，要判断一下，是否已经在mongodb数据库中，在意味着处理过了。
+如果处理过了，就跳过。如果没有处理过，
+就组合数据： 标题+文章概述（截断120字） 构造的prompt， 传入接口3 。
+
+就调用接口3, 获取对应的json， 按照标题和原url等基础信息合并，按url 更新mongodb数据库中对应的文章记录。
+
+
+第2个：每小时执行一次，从mongodb数据库中读取所有价值度高于4分的文章url,且 未处理过的（full_content字段为空）， 调用接口1，获得对应转换好的含有元数据+全文内容的Markdown的文本的json。
+获得的信息更新mongodb数据库中对应的文章记录。
+
+第3个： 每2小时执行一次，调用接口2
+这部分的提示词已有。
+遍历mongodb所有未处理，AI摘要的的且价值度高于4分的文章全文markdown内容，通过接口2，获得对应的json数据，更新mongodb对应文章的字段和全文内容。
+
+
+
+后续定时任务，会通过青龙面板部署
+
+--------
+
+价值度低于4分的文章，，会被丢弃，后续不再惊细处理。
+文章的url链接，在mysql数据库中：
+
+在 192.168.2.18 ：3307
+
+MYSQL_ROOT_PASSWORD: rootpass123
+MYSQL_DATABASE: we_mp_rss
+MYSQL_USER: rss_user
+MYSQL_PASSWORD: pass123456
+
+表名：articles ： url 字段 为 url , 描述字段 为 description ，标题字段：title，更新时间：publish_time （int）
+, 价值度字段 为 pre_value_score , 原因字段： pre_value_score_reason, 
+文章类型标签字段 为 article_type
+
+-----
+结果mongodb数据库中 
+在 192.168.2.18 27017
+
+MONGO_INITDB_ROOT_USERNAME: admin
+MONGO_INITDB_ROOT_PASSWORD: password123
+-------
+
+完成整个项目的开发，要求性能高，支持并发，同时要主要考虑到数据的一致性和完整性。
+其他必要的字段可以补充。
+
+
+用：
+https://www.runoob.com/ai-agent/roxybrowser-openclaw.html
+https://mp.weixin.qq.com/s/G8CnMq0f8HlJ2X_7isMcqw
+https://mp.weixin.qq.com/s/lgetu0KVHMwTdGcfpK9Rnw
+链接进行测试

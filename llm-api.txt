@@ -1,0 +1,68 @@
+Coding Plan
+快速接入
+
+复制页面
+
+快速了解 Coding Plan 订阅及接入
+
+​
+开始使用
+1
+订阅编程套餐
+
+访问 订阅 Coding Plan 选择最适合您的编程套餐Coding Plan
+2
+获取 API Key
+
+访问 接口密钥 > 创建 Coding Plan Key 获取 API Key
+重要提示：
+此 API Key 为 Coding Plan 专属，仅适用于文本模型，和按量计费 API Key 并不互通。
+此 API Key 仅在您订阅 Coding Plan 有效期内有效。
+请妥善保存您的 API Key ，建议将其导出为环境变量或保存到配置文件
+apikey
+3
+测试 API 调用（可选）
+
+通过 Anthropic API 兼容，快速测试 MiniMax M2.5
+1. 安装 Anthropic SDK
+
+Python
+
+Node.js
+pip install anthropic
+2. 配置环境变量
+export ANTHROPIC_BASE_URL=https://api.minimaxi.com/anthropic
+export ANTHROPIC_API_KEY=${YOUR_API_KEY}
+3. 调用 API
+Python
+import anthropic
+
+client = anthropic.Anthropic()
+
+message = client.messages.create(
+    model="MiniMax-M2.5",
+    max_tokens=1000,
+    system="You are a helpful assistant.",
+    messages=[
+        {
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": "Hi, how are you?"
+                }
+            ]
+        }
+    ]
+)
+
+for block in message.content:
+    if block.type == "thinking":
+        print(f"Thinking:\n{block.thinking}\n")
+    elif block.type == "text":
+        print(f"Text:\n{block.text}\n")
+4
+接入 AI 编程工具
+
+
+API key 为： sk-cp-RsDimK9SOVyDLUSKUuEeio7M1L9yq79ydrtV_tSA_TM9yvIURS7_WF5Q0LjqaOfF7l__j9f0OpnMDM1gIzCqDNTgvabJB3B12dryFoWzSoOmgHNgUhbhAEU
