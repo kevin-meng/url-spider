@@ -14,5 +14,5 @@ def clear_mongo():
     result = articles_collection.delete_many({})
     print(f"Deleted {result.deleted_count} documents from MongoDB.")
 
-if __name__ == "__main__":
-    clear_mongo()
+# if __name__ == "__main__":
+#     clear_mongo()
