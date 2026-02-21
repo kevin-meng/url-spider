@@ -13,40 +13,52 @@ try:
 except ImportError:
     pass
 
+
 class LLMService:
-    def __init__(self, settings_path: str = "exmemo_tools_settings_2026-02-19.json", model_name: Optional[str] = None):
+    def __init__(
+        self,
+        settings_path: str = "exmemo_tools_settings_2026-02-19.json",
+        model_name: Optional[str] = None,
+    ):
         self.settings_path = settings_path
         self._load_settings()
-        
+
         self.client = None
         self.provider = "openai"
         self.model_name = model_name or self.settings.get("llmModelName")
-        
+
         llm_base_url = self.settings.get("llmBaseUrl", "")
         llm_token = self.settings.get("llmToken")
-        
-        if "anthropic" in llm_base_url.lower() or "minimax" in llm_base_url.lower() or (self.model_name and ("claude" in self.model_name.lower() or "minimax" in self.model_name.lower())):
-              if 'AsyncAnthropic' in globals():
-                  self.provider = "anthropic"
-                  if "minimax" in llm_base_url.lower() and "anthropic" not in llm_base_url.lower():
-                       llm_base_url = llm_base_url.rstrip("/") + "/anthropic"
-                  
-                  self.client = AsyncAnthropic(
-                      api_key=llm_token,
-                      base_url=llm_base_url
-                  )
-              else:
-                  print("检测到 Anthropic 提供商，但未安装 anthropic 包。")
-        
-        if not self.client and 'AsyncOpenAI' in globals():
-             self.provider = "openai"
-             self.client = AsyncOpenAI(
-                api_key=llm_token,
-                base_url=llm_base_url
-             )
-             
+
+        if (
+            "anthropic" in llm_base_url.lower()
+            or "minimax" in llm_base_url.lower()
+            or (
+                self.model_name
+                and (
+                    "claude" in self.model_name.lower()
+                    or "minimax" in self.model_name.lower()
+                )
+            )
+        ):
+            if "AsyncAnthropic" in globals():
+                self.provider = "anthropic"
+                if (
+                    "minimax" in llm_base_url.lower()
+                    and "anthropic" not in llm_base_url.lower()
+                ):
+                    llm_base_url = llm_base_url.rstrip("/") + "/anthropic"
+
+                self.client = AsyncAnthropic(api_key=llm_token, base_url=llm_base_url)
+            else:
+                print("检测到 Anthropic 提供商，但未安装 anthropic 包。")
+
+        if not self.client and "AsyncOpenAI" in globals():
+            self.provider = "openai"
+            self.client = AsyncOpenAI(api_key=llm_token, base_url=llm_base_url)
+
         if not self.client:
-             raise ImportError("未找到或配置合适的 LLM 客户端。")
+            raise ImportError("未找到或配置合适的 LLM 客户端。")
 
     def _load_settings(self):
         if os.path.exists(self.settings_path):
@@ -60,24 +72,26 @@ class LLMService:
 
     def construct_summary_prompt(self, content: str) -> str:
         instructions = []
-        
+
         desc_field = self.settings.get("metaDescriptionFieldName", "description")
         desc_prompt = self.settings.get("metaDescription", "Summarize the content.")
         instructions.append(f"- '{desc_field}': {desc_prompt}")
-        
+
         tags_field = self.settings.get("metaTagsFieldName", "tags")
         tags_prompt = self.settings.get("metaTagsPrompt", "Extract tags.")
-        instructions.append(f"- '{tags_field}': {tags_prompt} (Return as a list of strings)")
-        
+        instructions.append(
+            f"- '{tags_field}': {tags_prompt} (Return as a list of strings)"
+        )
+
         for item in self.settings.get("customMetadata", []):
             if item.get("type") == "prompt":
                 key = item.get("key")
                 value = item.get("value")
                 instructions.append(f"- '{key}': {value}")
-        
+
         instruction_str = "\n".join(instructions)
         truncated_content = content[:30000]
-        
+
         prompt = f"""
 Please analyze the following content and extract information according to the instructions below.
 Return a JSON object where keys match the field names specified in the instructions.
@@ -92,7 +106,7 @@ Content:
 
     def construct_evaluation_prompt(self, articles: List[Dict[str, str]]) -> str:
         articles_json = json.dumps(articles, ensure_ascii=False, indent=2)
-        
+
         prompt = f"""
 你是一位文章价值评估助手。我的核心价值领域包括：
 - 金融风控技能（模型、算法、风险管理）
@@ -105,6 +119,7 @@ Content:
 - 会作为我的头马俱乐部演讲素材
 - 个人心理成长
 - 认知提升、心理韧性，自信
+- 金融行业资讯动态，金融政策法规
 
 任务：一次性接收几十篇文章含title, description），为每篇输出：
 - title
@@ -134,9 +149,9 @@ Content:
                 model=self.model_name,
                 messages=[
                     {"role": "system", "content": self.construct_system_prompt()},
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
-                response_format={"type": "json_object"}
+                response_format={"type": "json_object"},
             )
             result_content = response.choices[0].message.content
         elif self.provider == "anthropic":
@@ -144,13 +159,11 @@ Content:
                 model=self.model_name,
                 max_tokens=4096,
                 system=self.construct_system_prompt(),
-                messages=[
-                    {"role": "user", "content": prompt}
-                ]
+                messages=[{"role": "user", "content": prompt}],
             )
             if response.content and len(response.content) > 0:
                 for block in response.content:
-                    if block.type == 'text':
+                    if block.type == "text":
                         result_content += block.text
         return result_content
 
@@ -177,12 +190,13 @@ Content:
             except json.JSONDecodeError:
                 # Try regex to find the first { and last }
                 import re
+
                 match = re.search(r"(\{.*\})", content, re.DOTALL)
                 if match:
                     try:
                         return json.loads(match.group(1))
                     except:
                         pass
-                
+
                 print(f"解析 JSON 失败: {content[:100]}...")
                 return {}

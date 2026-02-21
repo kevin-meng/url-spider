@@ -12,9 +12,9 @@ from database import get_mysql_db, articles_collection
 from services.clipper_service import ClipperService
 
 # 配置
-CONCURRENCY_CLIPPER = 3      # 剪藏并发数
+CONCURRENCY_CLIPPER = 10      # 剪藏并发数
 BATCH_SIZE = 50              # 每次从 MySQL 获取的文章数量
-TARGET_DATE = "2026-02-10"   # 处理在此日期之前的文章
+TARGET_DATE = "2026-02-20"   # 处理在此日期之前的文章
 
 async def process_article(article, clipper_service, clip_sem):
     url = article['url']
@@ -39,13 +39,10 @@ async def process_article(article, clipper_service, clip_sem):
                 "url": url,
                 "title": title,
                 "description": description,
-                "pre_value_score": 0, # 暂无评分
-                "article_type": [],
-                "pre_value_score_reason": "未评估 (补数)",
                 "created_at": datetime.now(),
                 "updated_at": datetime.now()
             }
-            articles_collection.insert_one(doc)
+            articles_collection.update_one({"url": url}, {"$set": doc}, upsert=True)
             # print(f"[同步] {title} ({url}) - 已存入 MongoDB")
 
         # 3. 执行剪藏
@@ -91,7 +88,7 @@ async def backfill_loop():
                 SELECT url, title, description 
                 FROM articles 
                 WHERE created_at < '{TARGET_DATE}' 
-                ORDER BY created_at DESC 
+                ORDER BY created_at  DESC
                 LIMIT {BATCH_SIZE} OFFSET {offset}
             """)
             
