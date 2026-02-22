@@ -306,7 +306,7 @@ def get_articles(
 
     articles = list(
         articles_collection.find(filter_query)
-        .sort(sort_field, sort_direction)
+        .sort([(sort_field, sort_direction)])
         .skip(skip)
         .limit(page_size)
     )
