@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Layout, DatePicker, Tabs, Card, Row, Col, Statistic, Progress, Pagination, Table, Tag, Divider, List, Button, Select, Input, Spin, message, Form, InputNumber, Space, Typography, Empty, Badge, Menu } from 'antd';
+import { Layout, DatePicker, Tabs, Card, Row, Col, Statistic, Progress, Pagination, Table, Tag, Divider, List, Button, Select, Input, Spin, message, Form, InputNumber, Space, Typography, Empty, Badge, Menu, Tooltip, Segmented, Slider } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { StarOutlined, StarFilled, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined, ReadOutlined, ReadFilled, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined, HomeOutlined, AppstoreOutlined, FileSearchOutlined, ArrowUpOutlined, RobotOutlined } from '@ant-design/icons';
+import { StarOutlined, StarFilled, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined, ReadOutlined, ReadFilled, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined, HomeOutlined, AppstoreOutlined, FileSearchOutlined, ArrowUpOutlined, RobotOutlined, FilterOutlined, SettingOutlined, CalendarOutlined, BarChartOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -41,12 +41,12 @@ const ARTICLE_FIELDS = [
   { key: '备注', label: '备注', type: 'text' }
 ];
 
-const MonitorProgress = ({ activeTab, setActiveTab, selectedDate, setSelectedDate }) => {
+const MonitorProgress = ({ selectedDate, setSelectedDate, scoreType, setScoreType }) => {
   const [stats, setStats] = useState(null);
   const [heatmapData, setHeatmapData] = useState(null);
-  const [scoreType, setScoreType] = useState('pre_value_score');
   const [monthlyData, setMonthlyData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('1');
 
   useEffect(() => {
     fetchStats();
@@ -277,7 +277,7 @@ const MonitorProgress = ({ activeTab, setActiveTab, selectedDate, setSelectedDat
                   title={<span style={{ color: '#8c8c8c', fontSize: '14px' }}>总账号数</span>}
                   value={stats.total_feeds} 
                   valueStyle={{ color: '#1890ff', fontWeight: 'bold', fontSize: '32px' }}
-                  prefix={<ArrowUpOutlined />}
+                  // prefix={<ArrowUpOutlined />}
                 />
               </Card>
             </Col>
@@ -541,27 +541,12 @@ const MonitorProgress = ({ activeTab, setActiveTab, selectedDate, setSelectedDat
 
   return (
     <div style={{ padding: '24px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>
-        <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#262626' }}>
-          📊 数据监控
-        </h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <span style={{ color: '#8c8c8c', fontSize: '14px' }}>选择日期:</span>
-          <DatePicker
-            value={selectedDate}
-            onChange={(date) => setSelectedDate(date)}
-            style={{ width: 180 }}
-            size="large"
-          />
-        </div>
-      </div>
-
       <Tabs activeKey={activeTab} onChange={setActiveTab} size="large" type="card" tabBarStyle={{ marginBottom: '24px', fontSize: '15px' }} items={tabItems} />
     </div>
   );
 };
 
-const ArticleManagement = () => {
+const ArticleManagement = ({ filters, setFilters, dateRange, setDateRange, allTags, fetchArticles }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -570,26 +555,12 @@ const ArticleManagement = () => {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
-  const [allTags, setAllTags] = useState([]);
-  const [dateRange, setDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
-  const [filters, setFilters] = useState({
-    scoreType: 'socre',
-    scores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-    tags: undefined,
-    isCollected: [true, false],
-    isFollowed: [true, false],
-    isDiscarded: [true, false],
-    isRead: [true, false],
-    sortBy: 'socre',
-    sortOrder: 'desc'
-  });
 
   useEffect(() => {
-    fetchArticles();
-    fetchTags();
+    fetchArticlesInternal();
   }, [currentPage, pageSize, filters, dateRange]);
 
-  const fetchArticles = async () => {
+  const fetchArticlesInternal = async () => {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: pageSize };
@@ -617,15 +588,6 @@ const ArticleManagement = () => {
     }
   };
 
-  const fetchTags = async () => {
-    try {
-      const response = await axios.get(`${API_BASE}/api/tags`);
-      setAllTags(response.data.tags);
-    } catch (error) {
-      console.error('获取标签失败:', error);
-    }
-  };
-
   const fetchArticleDetail = async (articleId) => {
     try {
       const response = await axios.get(`${API_BASE}/api/articles/${articleId}`);
@@ -645,7 +607,7 @@ const ArticleManagement = () => {
       message.success('保存成功');
       setEditing(false);
       fetchArticleDetail(selectedArticle._id);
-      fetchArticles();
+      fetchArticlesInternal();
     } catch (error) {
       message.error('保存失败');
       console.error(error);
@@ -661,7 +623,7 @@ const ArticleManagement = () => {
     try {
       await axios.put(`${API_BASE}/api/articles/${articleId}`, { [field]: value });
       message.success('更新成功');
-      fetchArticles();
+      fetchArticlesInternal();
       if (selectedArticle && selectedArticle._id === articleId) {
         fetchArticleDetail(articleId);
       }
@@ -990,182 +952,63 @@ const ArticleManagement = () => {
 
   return (
     <div style={{ 
-      height: 'calc(100vh - 140px)',
+      height: '100%',
       display: 'flex',
       flexDirection: 'column'
     }}>
       <div style={{ 
-        background: '#fff', 
-        padding: '16px 24px', 
-        borderBottom: '1px solid #f0f0f0',
-        boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
-        zIndex: 10
-      }}>
-        <Space size="small" wrap>
-          <RangePicker
-            value={dateRange}
-            onChange={(dates) => setDateRange(dates)}
-            size="small"
-            style={{ width: 240 }}
-          />
-          <Select
-            placeholder="评分类型"
-            style={{ width: 120 }}
-            value={filters.scoreType}
-            onChange={(value) => setFilters({ ...filters, scoreType: value })}
-            size="small"
-          >
-            <Option value="pre_value_score">pre_value</Option>
-            <Option value="socre">score</Option>
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="评分"
-            style={{ width: 180 }}
-            value={filters.scores}
-            onChange={(value) => setFilters({ ...filters, scores: value })}
-            size="small"
-          >
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
-              <Option key={score} value={score}>{score}</Option>
-            ))}
-          </Select>
-          <Select
-            mode="tags"
-            style={{ width: 180 }}
-            placeholder="标签"
-            value={filters.tags ? filters.tags.split(',') : []}
-            onChange={(value) => setFilters({ ...filters, tags: value.join(',') })}
-            size="small"
-          >
-            {allTags.map((tag) => (
-              <Option key={tag.name} value={tag.name}>{tag.name} ({tag.count})</Option>
-            ))}
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="收藏"
-            style={{ width: 90 }}
-            value={filters.isCollected}
-            onChange={(value) => setFilters({ ...filters, isCollected: value })}
-            size="small"
-          >
-            <Option value={false}>未收藏</Option>
-            <Option value={true}>已收藏</Option>
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="关注"
-            style={{ width: 90 }}
-            value={filters.isFollowed}
-            onChange={(value) => setFilters({ ...filters, isFollowed: value })}
-            size="small"
-          >
-            <Option value={false}>未关注</Option>
-            <Option value={true}>已关注</Option>
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="弃用"
-            style={{ width: 90 }}
-            value={filters.isDiscarded}
-            onChange={(value) => setFilters({ ...filters, isDiscarded: value })}
-            size="small"
-          >
-            <Option value={false}>未弃用</Option>
-            <Option value={true}>已弃用</Option>
-          </Select>
-          <Select
-            mode="multiple"
-            placeholder="已读"
-            style={{ width: 90 }}
-            value={filters.isRead}
-            onChange={(value) => setFilters({ ...filters, isRead: value })}
-            size="small"
-          >
-            <Option value={false}>未读</Option>
-            <Option value={true}>已读</Option>
-          </Select>
-          <Select
-            placeholder="排序"
-            style={{ width: 100 }}
-            value={filters.sortBy}
-            onChange={(value) => setFilters({ ...filters, sortBy: value })}
-            size="small"
-          >
-            <Option value="publish_time">时间</Option>
-            <Option value="pre_value_score">pre_value</Option>
-            <Option value="socre">score</Option>
-          </Select>
-          <Button type="primary" size="small" onClick={fetchArticles}>
-            刷新
-          </Button>
-        </Space>
-      </div>
-      
-      <div style={{ 
         flex: 1,
-        display: 'flex'
+        display: 'flex',
+        overflow: 'hidden'
       }}>
         <div style={{ 
           flex: 1,
-          overflowY: 'auto',
-          background: '#f5f7fa',
-          padding: '16px 20px'
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: '#f5f7fa'
         }}>
-          <Spin spinning={loading} tip="加载中...">
-            {articles.length > 0 ? (
-              <div>
-                {articles.map(renderArticleItem)}
-              </div>
-            ) : (
-              <Empty 
-                description="暂无文章" 
-                style={{ padding: '80px 0' }}
-              />
-            )}
-          </Spin>
+          <div style={{ 
+            flex: 1,
+            overflowY: 'auto',
+            padding: '16px 20px'
+          }}>
+            <Spin spinning={loading} tip="加载中...">
+              {articles.length > 0 ? (
+                <div>
+                  {articles.map(renderArticleItem)}
+                </div>
+              ) : (
+                <Empty 
+                  description="暂无文章" 
+                  style={{ padding: '80px 0' }}
+                />
+              )}
+            </Spin>
+          </div>
           
           <div style={{ 
-            padding: '16px 0',
-            background: '#fafafa',
-            borderRadius: 8,
-            marginTop: 12,
+            padding: '16px 20px',
+            background: '#fff',
+            borderTop: '1px solid #f0f0f0',
             flexShrink: 0
           }}>
             <div style={{ textAlign: 'center' }}>
-              <Space>
-                <Button 
-                  disabled={currentPage <= 1}
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                >
-                  上一页
-                </Button>
-                <span style={{ color: '#666' }}>
-                  第 {currentPage} / {Math.ceil(total / pageSize)} 页，共 {total} 条
-                </span>
-                <Button 
-                  disabled={currentPage >= Math.ceil(total / pageSize)}
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                >
-                  下一页
-                </Button>
-                <Select
-                  value={pageSize}
-                  onChange={(value) => {
-                    setPageSize(value);
-                    setCurrentPage(1);
-                  }}
-                  style={{ width: 100 }}
-                  size="small"
-                >
-                  <Option value={10}>10条/页</Option>
-                  <Option value={20}>20条/页</Option>
-                  <Option value={30}>30条/页</Option>
-                  <Option value={50}>50条/页</Option>
-                  <Option value={100}>100条/页</Option>
-                </Select>
-              </Space>
+              <Pagination
+                current={currentPage}
+                total={total}
+                pageSize={pageSize}
+                onChange={(page) => setCurrentPage(page)}
+                onShowSizeChange={(current, size) => {
+                  setPageSize(size);
+                  setCurrentPage(1);
+                }}
+                showSizeChanger
+                showQuickJumper
+                showTotal={(total) => `共 ${total} 条`}
+                size="middle"
+                pageSizeOptions={['10', '20', '30', '50', '100']}
+              />
             </div>
           </div>
         </div>
@@ -1176,7 +1019,8 @@ const ArticleManagement = () => {
               width: '58%', 
               background: '#fff',
               overflow: 'hidden',
-              boxShadow: '-2px 0 10px rgba(0,0,0,0.05)'
+              boxShadow: '-2px 0 10px rgba(0,0,0,0.05)',
+              borderLeft: '1px solid #f0f0f0'
             }}
           >
             {renderArticleDetail()}
@@ -1190,8 +1034,78 @@ const ArticleManagement = () => {
 function App() {
   const [collapsed, setCollapsed] = useState(false);
   const [activeMenu, setActiveMenu] = useState('monitor');
-  const [monitorActiveTab, setMonitorActiveTab] = useState('1');
-  const [selectedDate, setSelectedDate] = useState(dayjs().subtract(1, 'day'));
+  const [monitorScoreType, setMonitorScoreType] = useState('pre_value_score');
+  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [articleDateRange, setArticleDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
+  const [articleFilters, setArticleFilters] = useState({
+    scoreType: 'socre',
+    scores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    tags: undefined,
+    isCollected: [true, false],
+    isFollowed: [true, false],
+    isDiscarded: [true, false],
+    isRead: [true, false],
+    sortBy: 'socre',
+    sortOrder: 'desc'
+  });
+  const [allTags, setAllTags] = useState([]);
+
+  useEffect(() => {
+    fetchTags();
+  }, [articleDateRange]);
+
+  const fetchTags = async () => {
+    try {
+      const params = {};
+      if (articleDateRange[0]) {
+        params.start_date = articleDateRange[0].format('YYYY-MM-DD');
+      }
+      if (articleDateRange[1]) {
+        params.end_date = articleDateRange[1].format('YYYY-MM-DD');
+      }
+      const response = await axios.get(`${API_BASE}/api/tags`, { params });
+      setAllTags(response.data.tags);
+    } catch (error) {
+      console.error('获取标签失败:', error);
+    }
+  };
+
+  const handleFilterChange = (key, value) => {
+    setArticleFilters(prev => ({ ...prev, [key]: value }));
+  };
+
+  const getFilterSummary = () => {
+    const parts = [];
+    
+    if (articleFilters.scores && articleFilters.scores.length > 0 && articleFilters.scores.length < 11) {
+      parts.push(`评分: ${articleFilters.scores.join(',')}`);
+    }
+    
+    if (articleFilters.isCollected && articleFilters.isCollected.length === 1) {
+      parts.push(articleFilters.isCollected[0] ? '已收藏' : '未收藏');
+    }
+    
+    if (articleFilters.isFollowed && articleFilters.isFollowed.length === 1) {
+      parts.push(articleFilters.isFollowed[0] ? '已关注' : '未关注');
+    }
+    
+    if (articleFilters.isDiscarded && articleFilters.isDiscarded.length === 1) {
+      parts.push(articleFilters.isDiscarded[0] ? '已弃用' : '未弃用');
+    }
+    
+    if (articleFilters.isRead && articleFilters.isRead.length === 1) {
+      parts.push(articleFilters.isRead[0] ? '已读' : '未读');
+    }
+    
+    if (articleFilters.tags) {
+      const tagList = articleFilters.tags.split(',');
+      if (tagList.length > 0) {
+        parts.push(`标签: ${tagList.length > 2 ? `${tagList.slice(0, 2).join(',')}...` : tagList.join(',')}`);
+      }
+    }
+    
+    return parts;
+  };
 
   return (
     <Layout style={{ minHeight: '100vh', background: '#f5f7fa' }}>
@@ -1199,86 +1113,355 @@ function App() {
         collapsible
         collapsed={collapsed}
         onCollapse={(value) => setCollapsed(value)}
-        width={240}
-        collapsedWidth={80}
+        width={260}
+        collapsedWidth={64}
         style={{
           background: '#fff',
-          boxShadow: '0 0 10px rgba(0,0,0,0.05)',
-          zIndex: 100
+          boxShadow: '2px 0 8px rgba(0,0,0,0.06)',
+          zIndex: 100,
+          overflow: 'hidden'
         }}
+        trigger={null}
       >
         <div style={{ 
           height: 64, 
           display: 'flex', 
           alignItems: 'center', 
-          justifyContent: 'space-between', 
-          padding: '0 24px',
-          borderBottom: '1px solid #f0f0f0'
+          justifyContent: collapsed ? 'center' : 'space-between', 
+          padding: collapsed ? '0' : '0 20px',
+          borderBottom: '1px solid #f0f0f0',
+          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
         }}>
-          <h1 style={{ 
-            color: '#262626', 
-            margin: 0, 
-            fontSize: collapsed ? '16px' : '18px', 
-            fontWeight: 600,
-            letterSpacing: 0.5
-          }}>
-            📊 数据管理
-          </h1>
+          {!collapsed && (
+            <h1 style={{ 
+              color: '#fff', 
+              margin: 0, 
+              fontSize: '16px', 
+              fontWeight: 600,
+              letterSpacing: 0.5
+            }}>
+              📊 数据管理平台
+            </h1>
+          )}
+          {collapsed && <span style={{ color: '#fff', fontSize: '20px' }}>📊</span>}
           <Button
             type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+            icon={collapsed ? <MenuUnfoldOutlined style={{ color: '#fff', fontSize: '18px' }} /> : <MenuFoldOutlined style={{ color: '#fff', fontSize: '18px' }} />}
             onClick={() => setCollapsed(!collapsed)}
+            style={{ 
+              color: '#fff',
+              marginLeft: collapsed ? 0 : 'auto'
+            }}
           />
         </div>
-        <Menu
-          mode="inline"
-          selectedKeys={[activeMenu]}
-          onSelect={(info) => setActiveMenu(info.key)}
-          style={{ height: 'calc(100vh - 64px)', borderRight: 0 }}
-          items={[
-            {
-              key: 'monitor',
-              icon: <HomeOutlined />,
-              label: '数据监控'
-            },
-            {
-              key: 'article',
-              icon: <FileSearchOutlined />,
-              label: '文章管理'
-            }
-          ]}
-        />
+        
+        <div style={{ overflowY: 'auto', height: 'calc(100vh - 64px)' }}>
+          <Menu
+            mode="inline"
+            selectedKeys={[activeMenu]}
+            onSelect={(info) => setActiveMenu(info.key)}
+            style={{ height: 'auto', borderRight: 0, paddingTop: 8 }}
+            items={[
+              {
+                key: 'monitor',
+                icon: <BarChartOutlined />,
+                label: '数据监控'
+              },
+              {
+                key: 'article',
+                icon: <FileSearchOutlined />,
+                label: '文章管理'
+              }
+            ]}
+          />
+
+          {!collapsed && (
+            <div style={{ padding: '16px 16px 0' }}>
+              <Divider style={{ margin: '8px 0' }} />
+              
+              {activeMenu === 'monitor' && (
+                <div>
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <CalendarOutlined style={{ color: '#8c8c8c' }} />
+                      <Text type="secondary" style={{ fontSize: '13px' }}>选择日期</Text>
+                    </div>
+                    <DatePicker
+                      value={selectedDate}
+                      onChange={(date) => setSelectedDate(date)}
+                      style={{ width: '100%' }}
+                      size="middle"
+                    />
+                  </div>
+                  
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                      <SettingOutlined style={{ color: '#8c8c8c' }} />
+                      <Text type="secondary" style={{ fontSize: '13px' }}>评分类型</Text>
+                    </div>
+                    <Select
+                      value={monitorScoreType}
+                      onChange={(value) => setMonitorScoreType(value)}
+                      style={{ width: '100%' }}
+                      size="middle"
+                    >
+                      <Option value="pre_value_score">pre_value_score</Option>
+                      <Option value="score">score</Option>
+                    </Select>
+                  </div>
+                </div>
+              )}
+
+              {activeMenu === 'article' && (
+                <div>
+                  <div
+                    style={{
+                      padding: 14,
+                      background: 'linear-gradient(180deg,#ffffff 0%,#fafcff 100%)',
+                      border: '1px solid #f0f3f8',
+                      borderRadius: 12,
+                      boxShadow: '0 6px 18px rgba(0,0,0,0.06)',
+                      marginBottom: 16
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <FilterOutlined style={{ color: '#8c8c8c' }} />
+                      <Text type="secondary" style={{ fontSize: 13, fontWeight: 600 }}>筛选条件</Text>
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>日期范围</Text>
+                      <RangePicker
+                        value={articleDateRange}
+                        onChange={(dates) => setArticleDateRange(dates)}
+                        size="middle"
+                        style={{ width: '100%' }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>评分类型</Text>
+                      <Segmented
+                        block
+                        value={articleFilters.scoreType}
+                        onChange={(val) => handleFilterChange('scoreType', val)}
+                        options={[
+                          { label: 'pre_value', value: 'pre_value_score' },
+                          { label: 'score', value: 'socre' }
+                        ]}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c' }}>评分范围</Text>
+                        <Text style={{ fontSize: 12, color: '#262626', fontWeight: 600 }}>
+                          {Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0
+                            ? `${Math.min(...articleFilters.scores)} - ${Math.max(...articleFilters.scores)}`
+                            : '0 - 10'}
+                        </Text>
+                      </div>
+                      <Slider
+                        range
+                        min={0}
+                        max={10}
+                        value={[
+                          Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0 ? Math.min(...articleFilters.scores) : 0,
+                          Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0 ? Math.max(...articleFilters.scores) : 10
+                        ]}
+                        onChange={(val) => {
+                          const [minV, maxV] = val;
+                          const list = [];
+                          for (let i = minV; i <= maxV; i += 1) list.push(i);
+                          handleFilterChange('scores', list);
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: 14 }}>
+                      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>标签</Text>
+                      <Select
+                        mode="tags"
+                        style={{ width: '100%' }}
+                        placeholder="选择或输入标签"
+                        value={articleFilters.tags ? articleFilters.tags.split(',') : []}
+                        onChange={(value) => handleFilterChange('tags', value.join(','))}
+                        size="middle"
+                        maxTagCount={3}
+                      >
+                        {allTags.map((tag) => (
+                          <Option key={tag.name} value={tag.name}>{tag.name} ({tag.count})</Option>
+                        ))}
+                      </Select>
+                    </div>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>收藏</Text>
+                        <Segmented
+                          block
+                          value={
+                            articleFilters.isCollected?.length === 1
+                              ? (articleFilters.isCollected[0] ? 'yes' : 'no')
+                              : 'all'
+                          }
+                          onChange={(val) => {
+                            if (val === 'all') handleFilterChange('isCollected', [true, false]);
+                            else handleFilterChange('isCollected', [val === 'yes']);
+                          }}
+                          options={[
+                            { label: '全部', value: 'all' },
+                            { label: '是', value: 'yes' },
+                            { label: '否', value: 'no' }
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>关注</Text>
+                        <Segmented
+                          block
+                          value={
+                            articleFilters.isFollowed?.length === 1
+                              ? (articleFilters.isFollowed[0] ? 'yes' : 'no')
+                              : 'all'
+                          }
+                          onChange={(val) => {
+                            if (val === 'all') handleFilterChange('isFollowed', [true, false]);
+                            else handleFilterChange('isFollowed', [val === 'yes']);
+                          }}
+                          options={[
+                            { label: '全部', value: 'all' },
+                            { label: '是', value: 'yes' },
+                            { label: '否', value: 'no' }
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>弃用</Text>
+                        <Segmented
+                          block
+                          value={
+                            articleFilters.isDiscarded?.length === 1
+                              ? (articleFilters.isDiscarded[0] ? 'yes' : 'no')
+                              : 'all'
+                          }
+                          onChange={(val) => {
+                            if (val === 'all') handleFilterChange('isDiscarded', [true, false]);
+                            else handleFilterChange('isDiscarded', [val === 'yes']);
+                          }}
+                          options={[
+                            { label: '全部', value: 'all' },
+                            { label: '是', value: 'yes' },
+                            { label: '否', value: 'no' }
+                          ]}
+                        />
+                      </div>
+                      <div>
+                        <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>已读</Text>
+                        <Segmented
+                          block
+                          value={
+                            articleFilters.isRead?.length === 1
+                              ? (articleFilters.isRead[0] ? 'yes' : 'no')
+                              : 'all'
+                          }
+                          onChange={(val) => {
+                            if (val === 'all') handleFilterChange('isRead', [true, false]);
+                            else handleFilterChange('isRead', [val === 'yes']);
+                          }}
+                          options={[
+                            { label: '全部', value: 'all' },
+                            { label: '是', value: 'yes' },
+                            { label: '否', value: 'no' }
+                          ]}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ marginBottom: 6 }}>
+                      <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>排序</Text>
+                      <Segmented
+                        block
+                        value={articleFilters.sortBy}
+                        onChange={(val) => handleFilterChange('sortBy', val)}
+                        options={[
+                          { label: '时间', value: 'publish_time' },
+                          { label: 'pre_value', value: 'pre_value_score' },
+                          { label: 'score', value: 'socre' }
+                        ]}
+                      />
+                    </div>
+                  </div>
+
+                  {getFilterSummary().length > 0 && (
+                    <div style={{
+                      padding: 12,
+                      background: '#f6ffed',
+                      borderRadius: 10,
+                      border: '1px solid #d9f7be',
+                      marginBottom: 16
+                    }}>
+                      <Text style={{ fontSize: 12, color: '#389e0d', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                        已应用筛选
+                      </Text>
+                      <Space wrap size={6}>
+                        {getFilterSummary().map((item, idx) => (
+                          <Tag key={idx} color="green" style={{ fontSize: 11, margin: 0 }}>
+                            {item}
+                          </Tag>
+                        ))}
+                      </Space>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </Layout.Sider>
-      <Layout style={{ flex: 1 }}>
+      
+      <Layout style={{ flex: 1, overflow: 'hidden' }}>
         <Header style={{ 
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', 
-          padding: '0 32px', 
+          background: '#fff', 
+          padding: '0 24px', 
           display: 'flex', 
           alignItems: 'center',
-          boxShadow: '0 4px 12px rgba(102,126,234,0.3)'
+          boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+          borderBottom: '1px solid #f0f0f0',
+          height: 64,
+          flexShrink: 0
         }}>
-          <h1 style={{ 
-            color: '#fff', 
-            margin: 0, 
-            fontSize: '22px',
-            fontWeight: 600,
-            letterSpacing: '0.5px'
-          }}>
-            {activeMenu === 'monitor' ? '📊 数据监控系统' : '📝 文章管理系统'}
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <h2 style={{ 
+              margin: 0, 
+              fontSize: '18px',
+              fontWeight: 600,
+              color: '#262626'
+            }}>
+              {activeMenu === 'monitor' ? '📊 数据监控' : '📝 文章管理'}
+            </h2>
+          </div>
         </Header>
+        
         <Layout.Content style={{ 
           flex: 1, 
-          overflow: 'auto'
+          overflow: 'hidden',
+          background: '#f5f7fa'
         }}>
           {activeMenu === 'article' ? (
-            <ArticleManagement />
+            <ArticleManagement 
+              filters={articleFilters}
+              setFilters={setArticleFilters}
+              dateRange={articleDateRange}
+              setDateRange={setArticleDateRange}
+              allTags={allTags}
+            />
           ) : (
             <MonitorProgress 
-              activeTab={monitorActiveTab} 
-              setActiveTab={setMonitorActiveTab}
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
+              scoreType={monitorScoreType}
+              setScoreType={setMonitorScoreType}
             />
           )}
         </Layout.Content>

@@ -360,13 +360,35 @@ def update_article(article_id: str, article_update: ArticleUpdate):
 
 
 @app.get("/api/tags")
-def get_all_tags():
+def get_all_tags(
+    start_date: Optional[str] = Query(None, description="开始日期: YYYY-MM-DD"),
+    end_date: Optional[str] = Query(None, description="结束日期: YYYY-MM-DD"),
+):
     mongo_db = get_mongo_db()
 
-    pipeline = [
-        {"$group": {"_id": "$article_type", "count": {"$sum": 1}}},
-        {"$sort": {"count": -1}},
-    ]
+    match_query = {}
+
+    if start_date or end_date:
+        match_query["updated_at"] = {}
+        if start_date:
+            match_query["updated_at"]["$gte"] = datetime.strptime(
+                start_date, "%Y-%m-%d"
+            )
+        if end_date:
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
+            match_query["updated_at"]["$lt"] = end_datetime
+
+    pipeline = []
+    if match_query:
+        pipeline.append({"$match": match_query})
+
+    pipeline.extend(
+        [
+            {"$unwind": "$article_type"},
+            {"$group": {"_id": "$article_type", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+        ]
+    )
 
     tags = list(articles_collection.aggregate(pipeline))
 
