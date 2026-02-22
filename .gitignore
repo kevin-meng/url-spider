@@ -24,6 +24,11 @@ idea_output/
 **/node_modules/
 **/node_modules/.cache/
 
+# 包管理锁文件（可选，根据团队规范决定是否提交）
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
 # 构建产物
 **/build/
 **/dist/

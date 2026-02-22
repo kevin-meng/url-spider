@@ -24,6 +24,7 @@ class StatsResponse(BaseModel):
     total_articles: int
     today_feeds: int
     today_articles: int
+    today_mongo_articles_count: int
     today_preprocessed: int
     today_preprocessed_rate: float
     today_full_content: int
@@ -55,6 +56,7 @@ def get_stats(date: Optional[str] = Query(None, description="日期格式: YYYY-
             total_articles = result["total_articles"]
             today_feeds = result["today_feeds"]
             today_articles = result["today_articles"]
+            today_mongo_articles_count = result.get("today_mongo_articles_count", 0)
             today_preprocessed = result["today_preprocessed"]
             today_full_content = result["today_full_content"]
             high_score_articles = result.get("high_score_articles", 0)
@@ -64,6 +66,7 @@ def get_stats(date: Optional[str] = Query(None, description="日期格式: YYYY-
             total_articles = 0
             today_feeds = 0
             today_articles = 0
+            today_mongo_articles_count = 0
             today_preprocessed = 0
             today_full_content = 0
             high_score_articles = 0
@@ -74,16 +77,17 @@ def get_stats(date: Optional[str] = Query(None, description="日期格式: YYYY-
         total_articles=total_articles,
         today_feeds=today_feeds,
         today_articles=today_articles,
+        today_mongo_articles_count=today_mongo_articles_count,
         today_preprocessed=today_preprocessed,
         today_preprocessed_rate=(
-            round(today_preprocessed / today_articles * 100, 2)
-            if today_articles > 0
+            round(today_preprocessed / max(today_mongo_articles_count, 1) * 100, 2)
+            if today_mongo_articles_count > 0
             else 0
         ),
         today_full_content=today_full_content,
         today_full_content_rate=(
-            round(today_full_content / today_articles * 100, 2)
-            if today_articles > 0
+            round(today_full_content / max(today_mongo_articles_count, 1) * 100, 2)
+            if today_mongo_articles_count > 0
             else 0
         ),
         high_score_articles=high_score_articles,

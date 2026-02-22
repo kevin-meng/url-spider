@@ -83,6 +83,7 @@ def calculate_daily_stats(target_date):
             {"updated_at": {"$gte": start_of_day, "$lt": end_of_day}}
         )
     )
+    today_mongo_articles_count = len(mongo_articles)
 
     today_preprocessed = len(
         [a for a in mongo_articles if a.get("pre_value_score", 0) >= 1]
@@ -109,6 +110,7 @@ def calculate_daily_stats(target_date):
         "total_articles": total_articles,
         "today_feeds": today_feeds,
         "today_articles": today_articles,
+        "today_mongo_articles_count": today_mongo_articles_count,
         "today_preprocessed": today_preprocessed,
         "today_full_content": today_full_content,
         "high_score_articles": high_score_count,
@@ -122,14 +124,17 @@ def save_daily_stats(stats_data):
         insert_sql = text(
             """
             INSERT INTO daily_stats (stat_date, total_feeds, total_articles, today_feeds, 
-                today_articles, today_preprocessed, today_full_content, high_score_articles, today_llm_summary)
+                today_articles, today_mongo_articles_count, today_preprocessed, today_full_content, 
+                high_score_articles, today_llm_summary)
             VALUES (:stat_date, :total_feeds, :total_articles, :today_feeds, 
-                :today_articles, :today_preprocessed, :today_full_content, :high_score_articles, :today_llm_summary)
+                :today_articles, :today_mongo_articles_count, :today_preprocessed, :today_full_content, 
+                :high_score_articles, :today_llm_summary)
             ON DUPLICATE KEY UPDATE
                 total_feeds = VALUES(total_feeds),
                 total_articles = VALUES(total_articles),
                 today_feeds = VALUES(today_feeds),
                 today_articles = VALUES(today_articles),
+                today_mongo_articles_count = VALUES(today_mongo_articles_count),
                 today_preprocessed = VALUES(today_preprocessed),
                 today_full_content = VALUES(today_full_content),
                 high_score_articles = VALUES(high_score_articles),

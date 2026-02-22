@@ -357,7 +357,7 @@ const MonitorProgress = ({ activeTab, setActiveTab, selectedDate, setSelectedDat
                     {stats.today_preprocessed}
                   </div>
                   <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: 16 }}>
-                    / {stats.today_articles} 篇
+                    / {stats.today_mongo_articles_count} 篇 (MongoDB)
                   </div>
                   <Progress 
                     percent={stats.today_preprocessed_rate} 
@@ -396,7 +396,7 @@ const MonitorProgress = ({ activeTab, setActiveTab, selectedDate, setSelectedDat
                     {stats.today_full_content}
                   </div>
                   <div style={{ fontSize: '14px', color: '#8c8c8c', marginBottom: 16 }}>
-                    / {stats.today_articles} 篇
+                    / {stats.today_mongo_articles_count} 篇 (MongoDB)
                   </div>
                   <Progress 
                     percent={stats.today_full_content_rate} 
