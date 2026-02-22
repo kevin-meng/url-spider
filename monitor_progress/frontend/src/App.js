@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import MonitorProgressNew from './features/monitor/MonitorProgress';
+import ArticleManagementNew from './features/article/ArticleManagement';
 import { Layout, DatePicker, Tabs, Card, Row, Col, Statistic, Progress, Pagination, Table, Tag, Divider, List, Button, Select, Input, Spin, message, Form, InputNumber, Space, Typography, Menu, Segmented, Slider } from 'antd';
 import ReactECharts from 'echarts-for-react';
 import ReactMarkdown from 'react-markdown';
@@ -1460,12 +1462,12 @@ function App() {
           background: '#f5f7fa'
         }}>
           {activeMenu === 'article' ? (
-            <ArticleManagement 
+            <ArticleManagementNew 
               filters={articleFilters}
               dateRange={articleDateRange}
             />
           ) : (
-            <MonitorProgress 
+            <MonitorProgressNew 
               selectedDate={selectedDate}
               setSelectedDate={setSelectedDate}
               scoreType={monitorScoreType}
