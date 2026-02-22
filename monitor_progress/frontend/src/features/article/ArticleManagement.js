@@ -78,7 +78,8 @@ function ArticleManagement({ filters, dateRange }) {
       setTotal(response.data.total);
     } catch (error) {
       console.error('获取文章失败:', error);
-      message.error('获取文章失败');
+      console.error('错误详情:', error.response);
+      message.error(`获取文章失败: ${error.message}`);
     } finally {
       setLoading(false);
     }
