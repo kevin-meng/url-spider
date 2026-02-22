@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
-import { Layout, DatePicker, Tabs, Card, Row, Col, Statistic, Progress, Pagination, Table, Tag, Divider, List, Button, Select, Input, Spin, message, Form, InputNumber, Space, Typography, Empty, Badge, Menu, Tooltip, Segmented, Slider } from 'antd';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Layout, DatePicker, Tabs, Card, Row, Col, Statistic, Progress, Pagination, Table, Tag, Divider, List, Button, Select, Input, Spin, message, Form, InputNumber, Space, Typography, Menu, Segmented, Slider } from 'antd';
 import ReactECharts from 'echarts-for-react';
-import { StarOutlined, StarFilled, EyeOutlined, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined, ReadOutlined, ReadFilled, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined, HomeOutlined, AppstoreOutlined, FileSearchOutlined, ArrowUpOutlined, RobotOutlined, FilterOutlined, SettingOutlined, CalendarOutlined, BarChartOutlined } from '@ant-design/icons';
+import ReactMarkdown from 'react-markdown';
+import { StarOutlined, StarFilled, CheckCircleOutlined, CloseCircleOutlined, EditOutlined, SaveOutlined, CloseOutlined, ReadOutlined, ReadFilled, FileTextOutlined, MenuFoldOutlined, MenuUnfoldOutlined, FileSearchOutlined, RobotOutlined, FilterOutlined, SettingOutlined, CalendarOutlined, BarChartOutlined } from '@ant-design/icons';
 import axios from 'axios';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -10,11 +11,10 @@ import relativeTime from 'dayjs/plugin/relativeTime';
 dayjs.locale('zh-cn');
 dayjs.extend(relativeTime);
 
-const { Header, Content, Sider } = Layout;
+const { Header } = Layout;
 const { Title, Text } = Typography;
 const { Option } = Select;
 const { TextArea } = Input;
-const { RangePicker } = DatePicker;
 
 const API_BASE = 'http://localhost:8000';
 
@@ -32,11 +32,11 @@ const ARTICLE_FIELDS = [
   { key: '组织公司', label: '组织公司', type: 'tags_hash' },
   { key: '生命之花', label: '生命之花', type: 'lines_semicolon' },
   { key: '相关问题', label: '相关问题', type: 'lines_semicolon' },
-  { key: '问题库', label: '问题库', type: 'lines_semicolon' },
+  { key: '问题库', label: '问题库', type: 'lines_dash' },
   { key: '原则库', label: '原则库', type: 'lines_period' },
   { key: '四精练', label: '四精练', type: 'lines_semicolon' },
   { key: '量化的结论', label: '量化的结论', type: 'lines_semicolon' },
-  { key: '点子库', label: '点子库', type: 'text' },
+  { key: '点子库', label: '点子库', type: 'markdown' },
   { key: '梳理点子想法', label: '梳理点子想法', type: 'text' },
   { key: '备注', label: '备注', type: 'text' }
 ];
@@ -546,21 +546,26 @@ const MonitorProgress = ({ selectedDate, setSelectedDate, scoreType, setScoreTyp
   );
 };
 
-const ArticleManagement = ({ filters, setFilters, dateRange, setDateRange, allTags, fetchArticles }) => {
+const ArticleManagement = ({ filters, dateRange }) => {
   const [articles, setArticles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(30);
+  const [pageSize] = useState(10); // 每页10篇
   const [total, setTotal] = useState(0);
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
 
-  useEffect(() => {
-    fetchArticlesInternal();
-  }, [currentPage, pageSize, filters, dateRange]);
+  const queryKey = JSON.stringify({
+    filters,
+    start_date: dateRange && dateRange[0] ? dateRange[0].format('YYYY-MM-DD') : null,
+    end_date: dateRange && dateRange[1] ? dateRange[1].format('YYYY-MM-DD') : null,
+    pageSize
+  });
 
-  const fetchArticlesInternal = async () => {
+  const lastQueryKeyRef = useRef(queryKey);
+
+  const fetchArticlesInternal = useCallback(async () => {
     setLoading(true);
     try {
       const params = { page: currentPage, page_size: pageSize };
@@ -573,20 +578,33 @@ const ArticleManagement = ({ filters, setFilters, dateRange, setDateRange, allTa
       if (filters.scores && filters.scores.length > 0) params.scores = filters.scores;
       if (filters.sortBy) params.sort_by = filters.sortBy;
       if (filters.sortOrder) params.sort_order = filters.sortOrder;
-      
-      if (dateRange[0]) params.start_date = dateRange[0].format('YYYY-MM-DD');
-      if (dateRange[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
+      if (dateRange && dateRange[0]) params.start_date = dateRange[0].format('YYYY-MM-DD');
+      if (dateRange && dateRange[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
 
       const response = await axios.get(`${API_BASE}/api/articles`, { params });
-      setArticles(response.data.data);
+      const nextArticles = Array.isArray(response.data?.articles)
+        ? response.data.articles
+        : (Array.isArray(response.data?.data) ? response.data.data : []);
+      setArticles(nextArticles);
       setTotal(response.data.total);
     } catch (error) {
-      message.error('获取文章列表失败');
-      console.error(error);
+      console.error('获取文章失败:', error);
+      message.error('获取文章失败');
     } finally {
       setLoading(false);
     }
-  };
+  }, [currentPage, dateRange, filters, pageSize]);
+
+  useEffect(() => {
+    if (lastQueryKeyRef.current !== queryKey && currentPage !== 1) {
+      lastQueryKeyRef.current = queryKey;
+      setCurrentPage(1);
+      return;
+    }
+
+    lastQueryKeyRef.current = queryKey;
+    fetchArticlesInternal();
+  }, [currentPage, fetchArticlesInternal, queryKey]);
 
   const fetchArticleDetail = async (articleId) => {
     try {
@@ -612,11 +630,6 @@ const ArticleManagement = ({ filters, setFilters, dateRange, setDateRange, allTa
       message.error('保存失败');
       console.error(error);
     }
-  };
-
-  const handleCancel = () => {
-    setEditing(false);
-    form.setFieldsValue(selectedArticle);
   };
 
   const handleToggleFlag = async (articleId, field, value) => {
@@ -659,374 +672,299 @@ const ArticleManagement = ({ filters, setFilters, dateRange, setDateRange, allTa
         return (
           <Space wrap>
             {parseTags(value, '#').map((tag, idx) => (
-              <Tag key={idx} color="purple">{tag}</Tag>
+              <Tag key={idx} color="green">{tag}</Tag>
             ))}
           </Space>
         );
       case 'lines_semicolon':
         return (
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {parseLines(value, ';').map((line, idx) => (
-              <li key={idx} style={{ marginBottom: 8 }}>{line}</li>
-            ))}
-          </ul>
+          <List
+            size="small"
+            dataSource={parseLines(value, ';')}
+            renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
+          />
         );
       case 'lines_period':
         return (
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
-            {parseLines(value, '。').map((line, idx) => (
-              <li key={idx} style={{ marginBottom: 8 }}>{line}。</li>
-            ))}
-          </ul>
+          <List
+            size="small"
+            dataSource={parseLines(value, '.')}
+            renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
+          />
         );
-      case 'number':
-        return <Text strong style={{ fontSize: 24 }}>{value}</Text>;
       default:
-        return <Text style={{ whiteSpace: 'pre-wrap' }}>{value}</Text>;
+        return <Text>{value}</Text>;
     }
-  };
-
-  const renderArticleItem = (article) => {
-    const preValueScore = article.pre_value_score || 0;
-    const score = article.socre || 0;
-    const publishTime = article.publish_time ? dayjs.unix(article.publish_time) : null;
-    const isDiscarded = article.is_enabled === false;
-    const isRead = article.is_read === true;
-
-    return (
-      <div
-        key={article._id}
-        style={{ 
-          padding: '16px 20px', 
-          cursor: 'pointer',
-          backgroundColor: selectedArticle?._id === article._id ? '#e6f7ff' : '#fff',
-          borderRadius: 8,
-          marginBottom: 12,
-          boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-          border: selectedArticle?._id === article._id ? '1px solid #91d5ff' : '1px solid #f0f0f0',
-          opacity: isDiscarded ? 0.6 : 1,
-          transition: 'all 0.2s'
-        }}
-        onClick={() => fetchArticleDetail(article._id)}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <div style={{ flex: 1, marginRight: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <a 
-                href={article.url} 
-                target="_blank" 
-                rel="noopener noreferrer"
-                style={{ 
-                  fontSize: 15, 
-                  fontWeight: 500, 
-                  color: selectedArticle?._id === article._id ? '#1890ff' : '#262626',
-                  lineHeight: 1.4
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {article.title}
-              </a>
-              <Badge status={isRead ? 'success' : 'default'} />
-            </div>
-            <div style={{ 
-              color: '#666', 
-              marginBottom: 10, 
-              display: '-webkit-box', 
-              WebkitLineClamp: 2, 
-              WebkitBoxOrient: 'vertical', 
-              overflow: 'hidden',
-              lineHeight: 1.5,
-              fontSize: 13
-            }}>
-              {article.description}
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-              <Space size={4}>
-                <Tag color="blue" style={{ fontSize: 11, padding: '0 8px', lineHeight: '20px', height: 22, borderRadius: 4 }}>
-                  pre: {preValueScore}
-                </Tag>
-                <Tag color="green" style={{ fontSize: 11, padding: '0 8px', lineHeight: '20px', height: 22, borderRadius: 4 }}>
-                  s: {score}
-                </Tag>
-              </Space>
-              <Space size={4} wrap>
-                {(typeof article.article_type === 'string' ? article.article_type.split(',').filter(t => t.trim()) : Array.isArray(article.article_type) ? article.article_type : []).slice(0, 4).map((tag, idx) => (
-                  <Tag key={idx} style={{ fontSize: 11, padding: '0 8px', lineHeight: '20px', height: 22, borderRadius: 4 }}>
-                    {tag.trim()}
-                  </Tag>
-                ))}
-                {(typeof article.article_type === 'string' ? article.article_type.split(',').filter(t => t.trim()).length : Array.isArray(article.article_type) ? article.article_type.length : 0) > 4 && (
-                  <Tag style={{ fontSize: 11, padding: '0 8px', lineHeight: '20px', height: 22, borderRadius: 4 }}>
-                    +{(typeof article.article_type === 'string' ? article.article_type.split(',').filter(t => t.trim()).length : Array.isArray(article.article_type) ? article.article_type.length : 0) - 4}
-                  </Tag>
-                )}
-              </Space>
-              <span style={{ fontSize: 12, color: '#999' }}>
-                {article.source || '未知'}
-              </span>
-              <span style={{ fontSize: 12, color: '#999' }}>
-                {publishTime ? publishTime.fromNow() : ''}
-              </span>
-              <Button
-                type="text"
-                icon={isRead ? <ReadFilled style={{ color: '#52c41a', fontSize: 14 }} /> : <ReadOutlined style={{ fontSize: 14 }} />}
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleToggleFlag(article._id, 'is_read', !isRead);
-                }}
-              />
-            </div>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <Button
-              type="text"
-              icon={article.is_collected ? <StarFilled style={{ color: '#faad14', fontSize: 16 }} /> : <StarOutlined style={{ fontSize: 16 }} />}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleFlag(article._id, 'is_collected', !article.is_collected);
-              }}
-            />
-            <Button
-              type="text"
-              icon={article.is_followed ? <CheckCircleOutlined style={{ color: '#52c41a', fontSize: 16 }} /> : <EyeOutlined style={{ fontSize: 16 }} />}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleFlag(article._id, 'is_followed', !article.is_followed);
-              }}
-            />
-            <Button
-              type="text"
-              danger={isDiscarded}
-              icon={isDiscarded ? <CloseCircleOutlined style={{ fontSize: 16 }} /> : <CheckCircleOutlined style={{ fontSize: 16 }} />}
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleToggleFlag(article._id, 'is_enabled', isDiscarded);
-              }}
-            />
-          </div>
-        </div>
-      </div>
-    );
   };
 
   const renderArticleDetail = () => {
-    if (!selectedArticle) {
-      return (
-        <div style={{ 
-          height: '100%', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'center',
-          color: '#999'
-        }}>
-          <Empty description="点击左侧文章查看详情" />
-        </div>
-      );
-    }
-
-    const isDiscarded = selectedArticle.is_enabled === false;
+    if (!selectedArticle) return null;
 
     return (
-      <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ 
-          padding: '20px 24px', 
-          borderBottom: '1px solid #f0f0f0',
-          background: '#fafafa',
-          flexShrink: 0
-        }}>
-          <Title level={4} style={{ marginBottom: 12, lineHeight: 1.4 }}>
-            <a href={selectedArticle.url} target="_blank" rel="noopener noreferrer" style={{ color: '#1890ff' }}>
-              {selectedArticle.title}
-            </a>
-          </Title>
-          <Space wrap style={{ marginBottom: 16 }}>
-            <Tag color="blue">pre_value_score: {selectedArticle.pre_value_score || 0}</Tag>
-            <Tag color="green">score: {selectedArticle.socre || 0}</Tag>
-            {(typeof selectedArticle.article_type === 'string' ? selectedArticle.article_type.split(',').filter(t => t.trim()) : Array.isArray(selectedArticle.article_type) ? selectedArticle.article_type : []).map((tag, idx) => (
-              <Tag key={idx}>{tag.trim()}</Tag>
-            ))}
-          </Space>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+
+          </div>
+          
+          <div style={{ marginBottom: 16 }}>
+            <Text strong style={{ fontSize: '16px' }}>{selectedArticle.title}</Text>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <Space>
-              <Button
-                icon={selectedArticle.is_collected ? <StarFilled /> : <StarOutlined />}
-                type={selectedArticle.is_collected ? 'primary' : 'default'}
-                onClick={() => handleToggleFlag(selectedArticle._id, 'is_collected', !selectedArticle.is_collected)}
-              >
-                {selectedArticle.is_collected ? '已收藏' : '收藏'}
-              </Button>
-              <Button
-                icon={selectedArticle.is_followed ? <CheckCircleOutlined /> : <EyeOutlined />}
-                type={selectedArticle.is_followed ? 'primary' : 'default'}
-                onClick={() => handleToggleFlag(selectedArticle._id, 'is_followed', !selectedArticle.is_followed)}
-              >
-                {selectedArticle.is_followed ? '已关注' : '关注'}
-              </Button>
-              <Button
-                danger={isDiscarded}
-                icon={isDiscarded ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
-                type={isDiscarded ? 'primary' : 'default'}
-                onClick={() => handleToggleFlag(selectedArticle._id, 'is_enabled', isDiscarded)}
-              >
-                {isDiscarded ? '已弃用' : '弃用'}
-              </Button>
+              <Text type="secondary">公众号:</Text>
+              <Text>{selectedArticle.mp_name}</Text>
             </Space>
-            {editing ? (
-              <Space>
-                <Button type="primary" icon={<SaveOutlined />} onClick={handleSave}>
+            <Space>
+              <Text type="secondary">发布时间:</Text>
+              <Text>{dayjs(selectedArticle.publish_time).format('YYYY-MM-DD HH:mm')}</Text>
+            </Space>
+            <Space>
+              <Text type="secondary">评分:</Text>
+              <Text style={{ color: '#1890ff', fontWeight: 'bold' }}>{selectedArticle.socre}</Text>
+            </Space>
+            <Space>
+              <Text type="secondary">pre_value:</Text>
+              <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>{selectedArticle.pre_value_score}</Text>
+            </Space>
+          </div>
+          
+          <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
+            <Button
+              size="small"
+              icon={selectedArticle.is_collected ? <StarFilled /> : <StarOutlined />}
+              type={selectedArticle.is_collected ? 'primary' : 'default'}
+              onClick={() => handleToggleFlag(selectedArticle._id, 'is_collected', !selectedArticle.is_collected)}
+            >
+              {selectedArticle.is_collected ? '已收藏' : '收藏'}
+            </Button>
+            <Button
+              size="small"
+              icon={selectedArticle.is_followed ? <CheckCircleOutlined /> : <CloseCircleOutlined />}
+              type={selectedArticle.is_followed ? 'primary' : 'default'}
+              onClick={() => handleToggleFlag(selectedArticle._id, 'is_followed', !selectedArticle.is_followed)}
+            >
+              {selectedArticle.is_followed ? '已关注' : '关注'}
+            </Button>
+            <Button
+              size="small"
+              icon={selectedArticle.is_discarded ? <CloseCircleOutlined /> : <CheckCircleOutlined />}
+              type={selectedArticle.is_discarded ? 'danger' : 'default'}
+              onClick={() => handleToggleFlag(selectedArticle._id, 'is_discarded', !selectedArticle.is_discarded)}
+            >
+              {selectedArticle.is_discarded ? '已弃用' : '弃用'}
+            </Button>
+            <Button
+              size="small"
+              icon={selectedArticle.is_read ? <ReadFilled /> : <ReadOutlined />}
+              type={selectedArticle.is_read ? 'primary' : 'default'}
+              onClick={() => handleToggleFlag(selectedArticle._id, 'is_read', !selectedArticle.is_read)}
+            >
+              {selectedArticle.is_read ? '已读' : '未读'}
+            </Button>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <Button
+                size="small"
+                style={{background: '#168ae9ff',color: '#f8f7f7ff', fontWeight: 'bold' }} 
+                icon={editing ? <CloseOutlined /> : <EditOutlined />}
+                onClick={() => setEditing(!editing)}
+              >
+                {editing ? '取消编辑' : '编辑'}
+              </Button>
+              {editing && (
+                // 填充淡蓝色
+                <Button size="small" style={{background: '#032c7dff',  color: '#f1ededff', fontWeight: 'bold' }} icon={<SaveOutlined />} onClick={handleSave}>
                   保存
                 </Button>
-                <Button icon={<CloseOutlined />} onClick={handleCancel}>
-                  取消
-                </Button>
-              </Space>
-            ) : (
-              <Button type="primary" icon={<EditOutlined />} onClick={() => setEditing(true)}>
-                编辑
-              </Button>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
-        <div style={{ 
-          flex: 1, 
-          overflowY: 'auto', 
-          padding: '24px',
-          background: '#fff'
-        }}>
-          {editing ? (
-            <Form
-              form={form}
-              layout="vertical"
-            >
-              {ARTICLE_FIELDS.map((field) => (
-                <Form.Item key={field.key} label={field.label} style={{ marginBottom: 16 }}>
-                  {field.type === 'number' ? (
-                    <Form.Item name={field.key} noStyle>
-                      <InputNumber min={0} max={10} style={{ width: '100%' }} />
-                    </Form.Item>
-                  ) : (
-                    <Form.Item name={field.key} noStyle>
-                      <TextArea rows={field.type === 'text' ? 4 : 6} />
-                    </Form.Item>
+        <Divider />
+
+        <Form form={form} layout="vertical">
+          {ARTICLE_FIELDS.map(field => (
+            <Form.Item
+              key={field.key}
+              label={
+                <span style={{ fontWeight: 500 }}>
+                  {field.label}
+                  {field.key === 'socre' && (
+                    <span style={{ marginLeft: 8, color: '#1890ff', fontSize: '12px' }}>当前评分</span>
                   )}
-                </Form.Item>
-              ))}
-            </Form>
-          ) : (
-            <div>
-              {ARTICLE_FIELDS.map((field) => (
-                <div key={field.key} style={{ marginBottom: 24 }}>
-                  <Text strong style={{ 
-                    display: 'block', 
-                    marginBottom: 10, 
-                    fontSize: 13,
-                    color: '#595959',
-                    textTransform: 'uppercase',
-                    letterSpacing: 0.5
-                  }}>
-                    {field.label}
-                  </Text>
-                  <div style={{ 
-                    padding: '14px 16px', 
-                    background: '#fafafa', 
-                    borderRadius: 6,
-                    fontSize: 14,
-                    lineHeight: 1.6,
-                    border: '1px solid #f0f0f0'
-                  }}>
-                    {renderFieldValue(field, selectedArticle[field.key])}
-                  </div>
+                </span>
+              }
+              name={field.key}
+            >
+              {editing ? (
+                field.type === 'number' ? (
+                  <InputNumber min={0} max={10} style={{ width: '100%' }} />
+                ) : field.type === 'text' ? (
+                  <TextArea rows={field.key === '概要' ? 4 : 3} />
+                ) : (
+                  <Input />
+                )
+              ) : (
+                <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: '6px' }}>
+                  {renderFieldValue(field, selectedArticle[field.key])}
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
+              )}
+            </Form.Item>
+          ))}
+        </Form>
       </div>
     );
   };
 
   return (
-    <div style={{ 
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column'
-    }}>
+    <div style={{ height: 'calc(100vh - 64px)', display: 'flex', overflow: 'hidden' }}>
+      {/* 左侧文章列表 */}
       <div style={{ 
-        flex: 1,
+        width: '42%', 
+        background: '#fff',
+        borderRight: '1px solid #f0f0f0',
         display: 'flex',
-        overflow: 'hidden'
+        flexDirection: 'column'
       }}>
+        {/* 文章列表头部 */}
         <div style={{ 
-          flex: 1,
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          background: '#f5f7fa'
+          padding: '16px 24px',
+          borderBottom: '1px solid #f0f0f0',
+          background: '#fafafa',
+          flexShrink: 0
         }}>
-          <div style={{ 
-            flex: 1,
-            overflowY: 'auto',
-            padding: '16px 20px'
-          }}>
-            <Spin spinning={loading} tip="加载中...">
-              {articles.length > 0 ? (
-                <div>
-                  {articles.map(renderArticleItem)}
-                </div>
-              ) : (
-                <Empty 
-                  description="暂无文章" 
-                  style={{ padding: '80px 0' }}
-                />
-              )}
-            </Spin>
-          </div>
-          
-          <div style={{ 
-            padding: '16px 20px',
-            background: '#fff',
-            borderTop: '1px solid #f0f0f0',
-            flexShrink: 0
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <Pagination
-                current={currentPage}
-                total={total}
-                pageSize={pageSize}
-                onChange={(page) => setCurrentPage(page)}
-                onShowSizeChange={(current, size) => {
-                  setPageSize(size);
-                  setCurrentPage(1);
-                }}
-                showSizeChanger
-                showQuickJumper
-                showTotal={(total) => `共 ${total} 条`}
-                size="middle"
-                pageSizeOptions={['10', '20', '30', '50', '100']}
-              />
-            </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Text strong>文章列表</Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              共 {total} 篇
+            </Text>
           </div>
         </div>
         
-        {selectedArticle && (
-          <div 
-            style={{ 
-              width: '58%', 
-              background: '#fff',
-              overflow: 'hidden',
-              boxShadow: '-2px 0 10px rgba(0,0,0,0.05)',
-              borderLeft: '1px solid #f0f0f0'
-            }}
-          >
-            {renderArticleDetail()}
-          </div>
-        )}
+        {/* 文章列表内容 */}
+        <div style={{ flex: 1, overflow: 'auto', padding: 12 }}>
+          <Spin spinning={loading}>
+            <List
+              dataSource={articles}
+              renderItem={(article) => (
+                <Card
+                  hoverable
+                  size="small"
+                  bodyStyle={{ padding: 12 }}
+                  style={{ 
+                    marginBottom: 10,
+                    borderRadius: 8,
+                    border: selectedArticle && selectedArticle._id === article._id ? '2px solid #1890ff' : '1px solid #f0f0f0',
+                    background: selectedArticle && selectedArticle._id === article._id ? '#f0f9ff' : '#fff'
+                  }}
+                  onClick={() => fetchArticleDetail(article._id)}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div style={{ flex: 1, marginRight: 12 }}>
+                      <div style={{ fontWeight: 500, marginBottom: 4, lineHeight: '1.4' }}>
+                        {article.title}
+                      </div>
+                      <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}>
+                        {article.mp_name} · {dayjs(article.publish_time).format('MM-DD HH:mm')}
+                      </div>
+                      {typeof article.description === 'string' && article.description.trim() && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: '#595959',
+                            marginBottom: 6,
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                            overflow: 'hidden'
+                          }}
+                        >
+                          {article.description}
+                        </div>
+                      )}
+                      {(() => {
+                        let tagsList = [];
+                        if (Array.isArray(article.tags)) {
+                          tagsList = article.tags.filter(Boolean).map(t => String(t).trim()).filter(Boolean);
+                        } else if (typeof article.tags === 'string') {
+                          tagsList = article.tags.split(',').map(t => t.trim()).filter(Boolean);
+                        } else if (Array.isArray(article.article_type)) {
+                          tagsList = article.article_type.filter(Boolean);
+                        } else if (typeof article.article_type === 'string' && article.article_type.trim()) {
+                          tagsList = [article.article_type.trim()];
+                        }
+                        if (tagsList.length === 0) return null;
+                        const display = tagsList.slice(0, 3);
+                        const rest = tagsList.length - display.length;
+                        return (
+                          <div style={{ marginBottom: 4 }}>
+                            <Space wrap size={4}>
+                              {display.map((tag, idx) => (
+                                <Tag key={idx} style={{ fontSize: '10px' }}>{tag}</Tag>
+                              ))}
+                              {rest > 0 && (
+                                <Tag style={{ fontSize: '10px' }}>+{rest}</Tag>
+                              )}
+                            </Space>
+                          </div>
+                        );
+                      })()}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                        <Space size={8}>
+                          <span style={{ fontSize: '11px', color: '#1890ff' }}>评分: {article.socre}</span>
+                          <span style={{ fontSize: '11px', color: '#52c41a' }}>pre: {article.pre_value_score}</span>
+                        </Space>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {article.is_collected && <StarFilled style={{ color: '#faad14', fontSize: '14px' }} />}
+                      {article.is_read && <ReadFilled style={{ color: '#52c41a', fontSize: '14px' }} />}
+                      {article.is_discarded && <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '14px' }} />}
+                    </div>
+                  </div>
+                </Card>
+              )}
+            />
+          </Spin>
+        </div>
+        
+        {/* 固定底部翻页条 */}
+        <div style={{ 
+          padding: '16px 24px',
+          borderTop: '1px solid #f0f0f0',
+          background: '#fff',
+          flexShrink: 0
+        }}>
+          <Pagination
+            current={currentPage}
+            total={total}
+            pageSize={pageSize}
+            onChange={(page) => setCurrentPage(page)}
+            showSizeChanger={false}
+            showQuickJumper
+            showTotal={(total) => `共 ${total} 条`}
+            size="small"
+            style={{ textAlign: 'center' }}
+          />
+        </div>
       </div>
+      
+      {/* 右侧详情区域 */}
+      {selectedArticle && (
+        <div 
+          style={{ 
+            width: '58%', 
+            background: '#fff',
+            overflow: 'hidden',
+            boxShadow: '-2px 0 10px rgba(0,0,0,0.05)',
+            borderLeft: '1px solid #f0f0f0'
+          }}
+        >
+          {renderArticleDetail()}
+        </div>
+      )}
     </div>
   );
 };
@@ -1054,13 +992,25 @@ function App() {
     fetchTags();
   }, [articleDateRange]);
 
+  // 临时筛选与日期，仅在点击“确认筛选”后生效到正式筛选
+  const [articleTempFilters, setArticleTempFilters] = useState(articleFilters);
+  const [articleTempDateRange, setArticleTempDateRange] = useState(articleDateRange);
+
+  useEffect(() => {
+    setArticleTempFilters(articleFilters);
+  }, [articleFilters]);
+
+  useEffect(() => {
+    setArticleTempDateRange(articleDateRange);
+  }, [articleDateRange]);
+
   const fetchTags = async () => {
     try {
       const params = {};
-      if (articleDateRange[0]) {
+      if (articleDateRange && articleDateRange[0]) {
         params.start_date = articleDateRange[0].format('YYYY-MM-DD');
       }
-      if (articleDateRange[1]) {
+      if (articleDateRange && articleDateRange[1]) {
         params.end_date = articleDateRange[1].format('YYYY-MM-DD');
       }
       const response = await axios.get(`${API_BASE}/api/tags`, { params });
@@ -1070,8 +1020,8 @@ function App() {
     }
   };
 
-  const handleFilterChange = (key, value) => {
-    setArticleFilters(prev => ({ ...prev, [key]: value }));
+  const handleTempFilterChange = (key, value) => {
+    setArticleTempFilters(prev => ({ ...prev, [key]: value }));
   };
 
   const getFilterSummary = () => {
@@ -1130,7 +1080,7 @@ function App() {
           justifyContent: collapsed ? 'center' : 'space-between', 
           padding: collapsed ? '0' : '0 20px',
           borderBottom: '1px solid #f0f0f0',
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+          background: 'linear-gradient(135deg, #3c5be8ff 0%, #2428e1ff 100%)'
         }}>
           {!collapsed && (
             <h1 style={{ 
@@ -1160,17 +1110,17 @@ function App() {
             mode="inline"
             selectedKeys={[activeMenu]}
             onSelect={(info) => setActiveMenu(info.key)}
-            style={{ height: 'auto', borderRight: 0, paddingTop: 8 }}
+            style={{ height: 'auto', borderRight: 0, paddingTop: 8, fontSize: 15, fontWeight: 600 }}
             items={[
               {
                 key: 'monitor',
-                icon: <BarChartOutlined />,
-                label: '数据监控'
+                icon: <BarChartOutlined style={{ fontSize: 16 }} />,
+                label: <span style={{ fontSize: 15, fontWeight: 600 }}>数据监控</span>
               },
               {
                 key: 'article',
-                icon: <FileSearchOutlined />,
-                label: '文章管理'
+                icon: <FileSearchOutlined style={{ fontSize: 16 }} />,
+                label: <span style={{ fontSize: 15, fontWeight: 600 }}>文章管理</span>
               }
             ]}
           />
@@ -1231,20 +1181,44 @@ function App() {
 
                     <div style={{ marginBottom: 14 }}>
                       <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>日期范围</Text>
-                      <RangePicker
-                        value={articleDateRange}
-                        onChange={(dates) => setArticleDateRange(dates)}
-                        size="middle"
-                        style={{ width: '100%' }}
-                      />
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <DatePicker
+                          allowClear
+                          value={articleTempDateRange?.[0] ?? null}
+                          onChange={(date) => {
+                            setArticleTempDateRange((prev) => {
+                              const next = [date, prev?.[1] ?? null];
+                              if (!next[0] && !next[1]) return null;
+                              return next;
+                            });
+                          }}
+                          size="middle"
+                          style={{ width: '100%' }}
+                          placeholder="开始日期"
+                        />
+                        <DatePicker
+                          allowClear
+                          value={articleTempDateRange?.[1] ?? null}
+                          onChange={(date) => {
+                            setArticleTempDateRange((prev) => {
+                              const next = [prev?.[0] ?? null, date];
+                              if (!next[0] && !next[1]) return null;
+                              return next;
+                            });
+                          }}
+                          size="middle"
+                          style={{ width: '100%' }}
+                          placeholder="结束日期"
+                        />
+                      </div>
                     </div>
 
                     <div style={{ marginBottom: 14 }}>
                       <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>评分类型</Text>
                       <Segmented
                         block
-                        value={articleFilters.scoreType}
-                        onChange={(val) => handleFilterChange('scoreType', val)}
+                        value={articleTempFilters.scoreType}
+                        onChange={(val) => handleTempFilterChange('scoreType', val)}
                         options={[
                           { label: 'pre_value', value: 'pre_value_score' },
                           { label: 'score', value: 'socre' }
@@ -1256,8 +1230,8 @@ function App() {
                       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
                         <Text style={{ fontSize: 12, color: '#8c8c8c' }}>评分范围</Text>
                         <Text style={{ fontSize: 12, color: '#262626', fontWeight: 600 }}>
-                          {Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0
-                            ? `${Math.min(...articleFilters.scores)} - ${Math.max(...articleFilters.scores)}`
+                          {Array.isArray(articleTempFilters.scores) && articleTempFilters.scores.length > 0
+                            ? `${Math.min(...articleTempFilters.scores)} - ${Math.max(...articleTempFilters.scores)}`
                             : '0 - 10'}
                         </Text>
                       </div>
@@ -1266,14 +1240,14 @@ function App() {
                         min={0}
                         max={10}
                         value={[
-                          Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0 ? Math.min(...articleFilters.scores) : 0,
-                          Array.isArray(articleFilters.scores) && articleFilters.scores.length > 0 ? Math.max(...articleFilters.scores) : 10
+                          Array.isArray(articleTempFilters.scores) && articleTempFilters.scores.length > 0 ? Math.min(...articleTempFilters.scores) : 0,
+                          Array.isArray(articleTempFilters.scores) && articleTempFilters.scores.length > 0 ? Math.max(...articleTempFilters.scores) : 10
                         ]}
                         onChange={(val) => {
                           const [minV, maxV] = val;
                           const list = [];
                           for (let i = minV; i <= maxV; i += 1) list.push(i);
-                          handleFilterChange('scores', list);
+                          handleTempFilterChange('scores', list);
                         }}
                       />
                     </div>
@@ -1284,8 +1258,8 @@ function App() {
                         mode="tags"
                         style={{ width: '100%' }}
                         placeholder="选择或输入标签"
-                        value={articleFilters.tags ? articleFilters.tags.split(',') : []}
-                        onChange={(value) => handleFilterChange('tags', value.join(','))}
+                        value={articleTempFilters.tags ? articleTempFilters.tags.split(',') : []}
+                        onChange={(value) => handleTempFilterChange('tags', value.join(','))}
                         size="middle"
                         maxTagCount={3}
                       >
@@ -1295,19 +1269,19 @@ function App() {
                       </Select>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 14 }}>
                       <div>
                         <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>收藏</Text>
                         <Segmented
                           block
                           value={
-                            articleFilters.isCollected?.length === 1
-                              ? (articleFilters.isCollected[0] ? 'yes' : 'no')
+                            articleTempFilters.isCollected?.length === 1
+                              ? (articleTempFilters.isCollected[0] ? 'yes' : 'no')
                               : 'all'
                           }
                           onChange={(val) => {
-                            if (val === 'all') handleFilterChange('isCollected', [true, false]);
-                            else handleFilterChange('isCollected', [val === 'yes']);
+                            if (val === 'all') handleTempFilterChange('isCollected', [true, false]);
+                            else handleTempFilterChange('isCollected', [val === 'yes']);
                           }}
                           options={[
                             { label: '全部', value: 'all' },
@@ -1321,13 +1295,13 @@ function App() {
                         <Segmented
                           block
                           value={
-                            articleFilters.isFollowed?.length === 1
-                              ? (articleFilters.isFollowed[0] ? 'yes' : 'no')
+                            articleTempFilters.isFollowed?.length === 1
+                              ? (articleTempFilters.isFollowed[0] ? 'yes' : 'no')
                               : 'all'
                           }
                           onChange={(val) => {
-                            if (val === 'all') handleFilterChange('isFollowed', [true, false]);
-                            else handleFilterChange('isFollowed', [val === 'yes']);
+                            if (val === 'all') handleTempFilterChange('isFollowed', [true, false]);
+                            else handleTempFilterChange('isFollowed', [val === 'yes']);
                           }}
                           options={[
                             { label: '全部', value: 'all' },
@@ -1341,13 +1315,13 @@ function App() {
                         <Segmented
                           block
                           value={
-                            articleFilters.isDiscarded?.length === 1
-                              ? (articleFilters.isDiscarded[0] ? 'yes' : 'no')
+                            articleTempFilters.isDiscarded?.length === 1
+                              ? (articleTempFilters.isDiscarded[0] ? 'yes' : 'no')
                               : 'all'
                           }
                           onChange={(val) => {
-                            if (val === 'all') handleFilterChange('isDiscarded', [true, false]);
-                            else handleFilterChange('isDiscarded', [val === 'yes']);
+                            if (val === 'all') handleTempFilterChange('isDiscarded', [true, false]);
+                            else handleTempFilterChange('isDiscarded', [val === 'yes']);
                           }}
                           options={[
                             { label: '全部', value: 'all' },
@@ -1361,13 +1335,13 @@ function App() {
                         <Segmented
                           block
                           value={
-                            articleFilters.isRead?.length === 1
-                              ? (articleFilters.isRead[0] ? 'yes' : 'no')
+                            articleTempFilters.isRead?.length === 1
+                              ? (articleTempFilters.isRead[0] ? 'yes' : 'no')
                               : 'all'
                           }
                           onChange={(val) => {
-                            if (val === 'all') handleFilterChange('isRead', [true, false]);
-                            else handleFilterChange('isRead', [val === 'yes']);
+                            if (val === 'all') handleTempFilterChange('isRead', [true, false]);
+                            else handleTempFilterChange('isRead', [val === 'yes']);
                           }}
                           options={[
                             { label: '全部', value: 'all' },
@@ -1382,14 +1356,49 @@ function App() {
                       <Text style={{ fontSize: 12, color: '#8c8c8c', display: 'block', marginBottom: 6 }}>排序</Text>
                       <Segmented
                         block
-                        value={articleFilters.sortBy}
-                        onChange={(val) => handleFilterChange('sortBy', val)}
+                        value={articleTempFilters.sortBy}
+                        onChange={(val) => handleTempFilterChange('sortBy', val)}
                         options={[
                           { label: '时间', value: 'publish_time' },
                           { label: 'pre_value', value: 'pre_value_score' },
                           { label: 'score', value: 'socre' }
                         ]}
                       />
+                    </div>
+
+                    {/* 确认和重置按钮 */}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
+                      <Button 
+                        block 
+                        onClick={() => {
+                          setArticleTempFilters({
+                            scoreType: 'socre',
+                            scores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                            tags: undefined,
+                            isCollected: [true, false],
+                            isFollowed: [true, false],
+                            isDiscarded: [true, false],
+                            isRead: [true, false],
+                            sortBy: 'socre',
+                            sortOrder: 'desc'
+                          });
+                          setArticleTempDateRange([dayjs().startOf('day'), dayjs().endOf('day')]);
+                        }}
+                      >
+                        重置筛选
+                      </Button>
+                      <Button 
+                        type="primary" 
+                        block 
+                        style={{ background: '#1a78c4ff', borderColor: '#1a6cc4ff' }}
+                        onClick={() => {
+                          setArticleFilters(articleTempFilters);
+                          setArticleDateRange(articleTempDateRange);
+                          message.success('筛选条件已应用');
+                        }}
+                      >
+                        确认筛选
+                      </Button>
                     </div>
                   </div>
 
@@ -1401,7 +1410,7 @@ function App() {
                       border: '1px solid #d9f7be',
                       marginBottom: 16
                     }}>
-                      <Text style={{ fontSize: 12, color: '#389e0d', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+                      <Text style={{ fontSize: 12, color: '#0d6b9eff', fontWeight: 600, display: 'block', marginBottom: 6 }}>
                         已应用筛选
                       </Text>
                       <Space wrap size={6}>
@@ -1431,16 +1440,18 @@ function App() {
           height: 64,
           flexShrink: 0
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <h2 style={{ 
-              margin: 0, 
-              fontSize: '18px',
-              fontWeight: 600,
-              color: '#262626'
-            }}>
-              {activeMenu === 'monitor' ? '📊 数据监控' : '📝 文章管理'}
-            </h2>
-          </div>
+          {activeMenu === 'monitor' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <h2 style={{ 
+                margin: 0, 
+                fontSize: '18px',
+                fontWeight: 600,
+                color: '#262626'
+              }}>
+                📊 数据监控
+              </h2>
+            </div>
+          )}
         </Header>
         
         <Layout.Content style={{ 
@@ -1451,10 +1462,7 @@ function App() {
           {activeMenu === 'article' ? (
             <ArticleManagement 
               filters={articleFilters}
-              setFilters={setArticleFilters}
               dateRange={articleDateRange}
-              setDateRange={setArticleDateRange}
-              allTags={allTags}
             />
           ) : (
             <MonitorProgress 
