@@ -783,8 +783,8 @@ const ArticleManagement = ({ filters, dateRange }) => {
           </div>
           
           <div style={{ marginBottom: 16 }}>
-            {selectedArticle.link ? (
-              <a href={selectedArticle.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+            {selectedArticle.url ? (
+              <a href={selectedArticle.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
                 <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>{selectedArticle.title}</Text>
               </a>
             ) : (
@@ -795,7 +795,7 @@ const ArticleManagement = ({ filters, dateRange }) => {
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <Space>
               <Text type="secondary">公众号:</Text>
-              <Text>{selectedArticle.mp_name || '未知公众号'}</Text>
+              <Text>{selectedArticle.source || '未知公众号'}</Text>
             </Space>
             <Space>
               <Text type="secondary">发布时间:</Text>
@@ -1130,7 +1130,7 @@ const ArticleManagement = ({ filters, dateRange }) => {
                             : '未知时间'
                           }
                         </span>
-                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name}</span>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.source}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>

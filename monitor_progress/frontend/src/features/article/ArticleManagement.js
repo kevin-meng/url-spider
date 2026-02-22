@@ -40,6 +40,10 @@ function ArticleManagement({ filters, dateRange }) {
   const [selectedArticle, setSelectedArticle] = useState(null);
   const [editing, setEditing] = useState(false);
   const [form] = Form.useForm();
+  const [collapsedGroups, setCollapsedGroups] = useState({
+    basicInfo: true, // 包含socre和tags
+    tagsGroup: true  // 包含书籍、事件、产品服务、人物、地点、概念实体、组织公司
+  });
 
   const queryKey = JSON.stringify({
     filters,
@@ -116,18 +120,47 @@ function ArticleManagement({ filters, dateRange }) {
     }
   };
 
-  const handleToggleFlag = async (articleId, field, value) => {
-    try {
-      await axios.put(`${API_BASE}/api/articles/${articleId}`, { [field]: value });
-      message.success('更新成功');
-      fetchArticlesInternal();
-      if (selectedArticle && selectedArticle._id === articleId) {
-        fetchArticleDetail(articleId);
-      }
-    } catch (error) {
-      message.error('更新失败');
-      console.error(error);
+  const handleToggleFlag = (articleId, field, value) => {
+    // 先更新本地状态，让UI立即变化
+    setArticles(prevArticles => {
+      return prevArticles.map(article => {
+        if (article._id === articleId) {
+          return {
+            ...article,
+            [field]: value
+          };
+        }
+        return article;
+      });
+    });
+    
+    // 如果当前选中的文章就是被修改的文章，也更新selectedArticle
+    if (selectedArticle && selectedArticle._id === articleId) {
+      setSelectedArticle(prev => ({
+        ...prev,
+        [field]: value
+      }));
     }
+    
+    // 异步发送请求到服务器
+    axios.put(`${API_BASE}/api/articles/${articleId}`, { [field]: value })
+      .then(() => {
+        message.success('更新成功');
+        // 这里可以选择是否重新获取文章列表，因为本地状态已经更新了
+        // fetchArticlesInternal();
+        // if (selectedArticle && selectedArticle._id === articleId) {
+        //   fetchArticleDetail(articleId);
+        // }
+      })
+      .catch(error => {
+        message.error('更新失败');
+        console.error(error);
+        // 如果请求失败，回滚本地状态
+        fetchArticlesInternal();
+        if (selectedArticle && selectedArticle._id === articleId) {
+          fetchArticleDetail(articleId);
+        }
+      });
   };
 
   const parseTags = (value, separator) => {
@@ -135,23 +168,31 @@ function ArticleManagement({ filters, dateRange }) {
     return value.split(separator).filter(t => t.trim()).map(t => t.trim());
     };
 
-  const parseLines = (value, separator) => {
+  const parseLines = (value, separators) => {
     if (!value || typeof value !== 'string') return [];
-    return value.split(separator).filter(t => t.trim()).map(t => t.trim());
+    
+    let result = [value];
+    separators.forEach(separator => {
+      result = result.flatMap(item => item.split(separator));
+    });
+    
+    return result.filter(item => item.trim()).map(item => item.trim());
   };
 
   const renderFieldValue = (field, value) => {
     if (!value) return <Text type="secondary">暂无内容</Text>;
-    switch (field.type) {
-      case 'tags_comma':
-        return (
-          <Space wrap>
-            {parseTags(value, ',').map((tag, idx) => (
-              <Tag key={idx} color="blue">{tag}</Tag>
-            ))}
-          </Space>
-        );
-      case 'tags_hash':
+
+    switch (field.key) {
+      case 'tags':
+        // 直接显示原字段内容，不做切分
+        return <Text>{value}</Text>;
+      case '书籍':
+      case '事件':
+      case '产品服务':
+      case '人物':
+      case '地点':
+      case '概念实体':
+      case '组织公司':
         return (
           <Space wrap>
             {parseTags(value, '#').map((tag, idx) => (
@@ -159,19 +200,51 @@ function ArticleManagement({ filters, dateRange }) {
             ))}
           </Space>
         );
-      case 'lines_semicolon':
+      case '四精练':
         return (
           <List
             size="small"
-            dataSource={parseLines(value, ';')}
+            dataSource={parseLines(value, ['；', ';', '\n'])}
             renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
           />
         );
-      case 'lines_period':
+      case '问题库':
         return (
           <List
             size="small"
-            dataSource={parseLines(value, '.')}
+            dataSource={parseLines(value, ['- ', '\n'])}
+            renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
+          />
+        );
+      case '原则库':
+        return (
+          <List
+            size="small"
+            dataSource={parseLines(value, ['。', '\n'])}
+            renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
+          />
+        );
+      case '相关问题':
+        return (
+          <List
+            size="small"
+            dataSource={parseLines(value, ['；', ';', '\n'])}
+            renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
+          />
+        );
+      case '点子库':
+        // 将##替换为####，并保持markdown格式
+        const formattedValue = value.replace(/##/g, '####');
+        return (
+          <div style={{ whiteSpace: 'pre-wrap' }}>
+            {formattedValue}
+          </div>
+        );
+      case '生命之花':
+        return (
+          <List
+            size="small"
+            dataSource={parseLines(value, ['；', ';', '\n'])}
             renderItem={(item) => <List.Item style={{ padding: '4px 0' }}>• {item}</List.Item>}
           />
         );
@@ -182,22 +255,39 @@ function ArticleManagement({ filters, dateRange }) {
 
   const renderArticleDetail = () => {
     if (!selectedArticle) return null;
+
     return (
       <div style={{ height: '100%', overflow: 'auto', padding: '24px' }}>
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+
           </div>
+          
           <div style={{ marginBottom: 16 }}>
-            <Text strong style={{ fontSize: '16px' }}>{selectedArticle.title}</Text>
+            {selectedArticle.link ? (
+              <a href={selectedArticle.link} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                <Text strong style={{ fontSize: '18px', color: '#1890ff' }}>{selectedArticle.title}</Text>
+              </a>
+            ) : (
+              <Text strong style={{ fontSize: '18px' }}>{selectedArticle.title}</Text>
+            )}
           </div>
+          
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <Space>
               <Text type="secondary">公众号:</Text>
-              <Text>{selectedArticle.mp_name}</Text>
+              <Text>{selectedArticle.mp_name || '未知公众号'}</Text>
             </Space>
             <Space>
               <Text type="secondary">发布时间:</Text>
-              <Text>{dayjs(selectedArticle.publish_time).format('YYYY-MM-DD HH:mm')}</Text>
+              <Text>
+                {selectedArticle.publish_time 
+                  ? typeof selectedArticle.publish_time === 'number' 
+                    ? dayjs.unix(selectedArticle.publish_time).format('YYYY-MM-DD HH:mm') 
+                    : dayjs(selectedArticle.publish_time).format('YYYY-MM-DD HH:mm') 
+                  : '未知时间'
+                }
+              </Text>
             </Space>
             <Space>
               <Text type="secondary">评分:</Text>
@@ -208,6 +298,7 @@ function ArticleManagement({ filters, dateRange }) {
               <Text style={{ color: '#52c41a', fontWeight: 'bold' }}>{selectedArticle.pre_value_score}</Text>
             </Space>
           </div>
+          
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <Button
               size="small"
@@ -258,36 +349,152 @@ function ArticleManagement({ filters, dateRange }) {
             </div>
           </div>
         </div>
+
         <Divider />
+
         <Form form={form} layout="vertical">
-          {ARTICLE_FIELDS.map(field => (
-            <Form.Item
-              key={field.key}
-              label={
-                <span style={{ fontWeight: 500 }}>
-                  {field.label}
-                  {field.key === 'socre' && (
-                    <span style={{ marginLeft: 8, color: '#1890ff', fontSize: '12px' }}>当前评分</span>
-                  )}
-                </span>
-              }
-              name={field.key}
-            >
-              {editing ? (
-                field.type === 'number' ? (
-                  <InputNumber min={0} max={10} style={{ width: '100%' }} />
-                ) : field.type === 'text' ? (
+          {/* 基本信息组：包含socre和tags */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>基本信息</h4>
+              <button 
+                style={{ fontSize: '12px', color: '#1890ff', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCollapsedGroups(prev => ({
+                    ...prev,
+                    basicInfo: !prev.basicInfo
+                  }));
+                }}
+              >
+                {collapsedGroups.basicInfo ? '展开' : '折叠'}
+              </button>
+            </div>
+            
+            {!collapsedGroups.basicInfo && (
+              <div style={{ marginBottom: 16, padding: 12, border: '1px dashed #d9d9d9', borderRadius: 8, background: '#fafafa' }}>
+                {ARTICLE_FIELDS.filter(field => ['socre', 'tags'].includes(field.key)).map(field => {
+                  return (
+                    <Form.Item
+                      key={field.key}
+                      label={
+                        <span style={{ fontWeight: 500 }}>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#1890ff', 
+                            marginRight: '6px',
+                            verticalAlign: 'middle'
+                          }} />
+                          {field.label}
+                          {field.key === 'socre' && (
+                            <span style={{ marginLeft: 8, color: '#1890ff', fontSize: '12px' }}>当前评分</span>
+                          )}
+                        </span>
+                      }
+                      name={field.key}
+                    >
+                      {editing ? (
+                        <TextArea rows={field.key === '概要' ? 4 : 3} />
+                      ) : (
+                        <div style={{ padding: '4px 8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                          {renderFieldValue(field, selectedArticle[field.key])}
+                        </div>
+                      )}
+                    </Form.Item>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          {/* 标签组：包含书籍、事件、产品服务、人物、地点、概念实体、组织公司 */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <h4 style={{ margin: 0, fontSize: '14px', fontWeight: 'bold' }}>标签信息</h4>
+              <button 
+                style={{ fontSize: '12px', color: '#1890ff', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setCollapsedGroups(prev => ({
+                    ...prev,
+                    tagsGroup: !prev.tagsGroup
+                  }));
+                }}
+              >
+                {collapsedGroups.tagsGroup ? '展开' : '折叠'}
+              </button>
+            </div>
+            
+            {!collapsedGroups.tagsGroup && (
+              <div style={{ marginBottom: 16, padding: 12, border: '1px dashed #d9d9d9', borderRadius: 8, background: '#fafafa' }}>
+                {ARTICLE_FIELDS.filter(field => ['书籍', '事件', '产品服务', '人物', '地点', '概念实体', '组织公司'].includes(field.key)).map(field => {
+                  return (
+                    <Form.Item
+                      key={field.key}
+                      label={
+                        <span style={{ fontWeight: 500 }}>
+                          <span style={{ 
+                            display: 'inline-block', 
+                            width: '8px', 
+                            height: '8px', 
+                            borderRadius: '50%', 
+                            backgroundColor: '#1890ff', 
+                            marginRight: '6px',
+                            verticalAlign: 'middle'
+                          }} />
+                          {field.label}
+                        </span>
+                      }
+                      name={field.key}
+                    >
+                      {editing ? (
+                        <TextArea rows={3} />
+                      ) : (
+                        <div style={{ padding: '4px 8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                          {renderFieldValue(field, selectedArticle[field.key])}
+                        </div>
+                      )}
+                    </Form.Item>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+          
+          {/* 其他字段 */}
+          {ARTICLE_FIELDS.filter(field => !['socre', 'tags', '书籍', '事件', '产品服务', '人物', '地点', '概念实体', '组织公司'].includes(field.key)).map(field => {
+            return (
+              <Form.Item
+                key={field.key}
+                label={
+                  <span style={{ fontWeight: 500 }}>
+                    <span style={{ 
+                      display: 'inline-block', 
+                      width: '8px', 
+                      height: '8px', 
+                      borderRadius: '50%', 
+                      backgroundColor: '#1890ff', 
+                      marginRight: '6px',
+                      verticalAlign: 'middle'
+                    }} />
+                    {field.label}
+                  </span>
+                }
+                name={field.key}
+              >
+                {editing ? (
                   <TextArea rows={field.key === '概要' ? 4 : 3} />
                 ) : (
-                  <Input />
-                )
-              ) : (
-                <div style={{ padding: '8px 12px', background: '#f5f5f5', borderRadius: '6px' }}>
-                  {renderFieldValue(field, selectedArticle[field.key])}
-                </div>
-              )}
-            </Form.Item>
-          ))}
+                  <div style={{ padding: '4px 8px', background: '#f5f5f5', borderRadius: '4px' }}>
+                    {renderFieldValue(field, selectedArticle[field.key])}
+                  </div>
+                )}
+              </Form.Item>
+            );
+          })}
         </Form>
       </div>
     );
@@ -337,8 +544,16 @@ function ArticleManagement({ filters, dateRange }) {
                       <div style={{ fontWeight: 500, marginBottom: 4, lineHeight: '1.4' }}>
                         {article.title}
                       </div>
-                      <div style={{ fontSize: '12px', color: '#8c8c8c', marginBottom: 4 }}>
-                        {article.mp_name} · {dayjs(article.publish_time).format('MM-DD HH:mm')}
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name || '未知公众号'}</span>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
+                          {article.publish_time 
+                            ? typeof article.publish_time === 'number' 
+                              ? dayjs.unix(article.publish_time).fromNow() 
+                              : dayjs(article.publish_time).fromNow() 
+                            : '未知时间'
+                          }
+                        </span>
                       </div>
                       {typeof article.description === 'string' && article.description.trim() && (
                         <div
@@ -382,17 +597,18 @@ function ArticleManagement({ filters, dateRange }) {
                           </div>
                         );
                       })()}
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                         <Space size={8}>
                           <span style={{ fontSize: '11px', color: '#1890ff' }}>评分: {article.socre}</span>
                           <span style={{ fontSize: '11px', color: '#52c41a' }}>pre: {article.pre_value_score}</span>
                         </Space>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name || '未知公众号'}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {article.is_collected && <StarFilled style={{ color: '#faad14', fontSize: '14px' }} />}
-                      {article.is_read && <ReadFilled style={{ color: '#52c41a', fontSize: '14px' }} />}
-                      {article.is_discarded && <CloseCircleOutlined style={{ color: '#ff4d4f', fontSize: '14px' }} />}
+                      <StarFilled style={{ color: article.is_collected ? '#faad14' : '#d9d9d9', fontSize: '14px' }} />
+                      <ReadFilled style={{ color: article.is_read ? '#52c41a' : '#d9d9d9', fontSize: '14px' }} />
+                      <CloseCircleOutlined style={{ color: article.is_discarded ? '#ff4d4f' : '#d9d9d9', fontSize: '14px' }} />
                     </div>
                   </div>
                 </Card>
