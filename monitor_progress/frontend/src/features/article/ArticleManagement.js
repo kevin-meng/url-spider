@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 
 const { Text } = Typography;
 const { TextArea } = Input;
-const API_BASE = '';
+const API_BASE = 'http://localhost:8000';
 
 const ARTICLE_FIELDS = [
   { key: '概要', label: '概要', type: 'text' },
