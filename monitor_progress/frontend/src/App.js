@@ -639,18 +639,47 @@ const ArticleManagement = ({ filters, dateRange }) => {
     }
   };
 
-  const handleToggleFlag = async (articleId, field, value) => {
-    try {
-      await axios.put(`${API_BASE}/api/articles/${articleId}`, { [field]: value });
-      message.success('更新成功');
-      fetchArticlesInternal();
-      if (selectedArticle && selectedArticle._id === articleId) {
-        fetchArticleDetail(articleId);
-      }
-    } catch (error) {
-      message.error('更新失败');
-      console.error(error);
+  const handleToggleFlag = (articleId, field, value) => {
+    // 先更新本地状态，让UI立即变化
+    setArticles(prevArticles => {
+      return prevArticles.map(article => {
+        if (article._id === articleId) {
+          return {
+            ...article,
+            [field]: value
+          };
+        }
+        return article;
+      });
+    });
+    
+    // 如果当前选中的文章就是被修改的文章，也更新selectedArticle
+    if (selectedArticle && selectedArticle._id === articleId) {
+      setSelectedArticle(prev => ({
+        ...prev,
+        [field]: value
+      }));
     }
+    
+    // 异步发送请求到服务器
+    axios.put(`${API_BASE}/api/articles/${articleId}`, { [field]: value })
+      .then(() => {
+        message.success('更新成功');
+        // 这里可以选择是否重新获取文章列表，因为本地状态已经更新了
+        // fetchArticlesInternal();
+        // if (selectedArticle && selectedArticle._id === articleId) {
+        //   fetchArticleDetail(articleId);
+        // }
+      })
+      .catch(error => {
+        message.error('更新失败');
+        console.error(error);
+        // 如果请求失败，回滚本地状态
+        fetchArticlesInternal();
+        if (selectedArticle && selectedArticle._id === articleId) {
+          fetchArticleDetail(articleId);
+        }
+      });
   };
 
   const parseTags = (value, separator) => {
