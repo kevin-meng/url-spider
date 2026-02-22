@@ -1,0 +1,189 @@
+
+
+下面是我目前的微信公众号的文章采集系统，那么目前有需要这样数据监控可视化系统。
+
+
+目前文章首先会存放在MySQL数据库当中，其中feads表代表了账号的信息。
+articles文章表 是文章信息。
+然后通过大模型以及网上抓取全文等方式，得到的加工数据会存到我的MongoDB数据库当中，那么对应的数据结构在最后。
+
+我需要一个可视化的界面来统计，我的数据情况采集和加工。
+ 每小时刷新一次的数据。支持选择日期。每天留最后一个切片。统计信息如下：
+
+
+页面最上面支持选择日期。
+
+1. 采集信息情况：
+   - 采集账号数量、 历史采集文章数量
+   - 今日采集账号数，今日采集文章数，今日预加工文章数（pre_value_score>=1 代表已经预加工）（进度比），获取全文文章数（full_content 非空意味着已经获取全文）（进度比）、大模型总结文章数（对于pre_value_score大于等于3 的才会调用大模型，llm_summary_processed=True） （进度比）
+
+
+- 今日采集文章分布（支持评分筛选）：
+  - 采集文章的评分 pre_value_score（0-10分）【评分由高到低 横轴】 和 article_type（拆成单个标签） 作为横轴分布 的二维热力分布含数字
+  - 采集文章的评分 score（0-10分）【评分由高到低 横轴】 和 article_type（拆成单个标签） 作为横轴分布 的二维热力分布含数字
+
+
+
+页面2 
+每天统计一次即可
+3. 数据采集信息预检
+因为每个账号它的添加时间不一样，然后然后它的采集的时间窗口也是不对齐的，所以就会存在有的账号可能只采了一段，中间又漏了一段，或者最早的一部分没有采集这种情况，那么首先我想要说，能够发现这种问题通过数据的统计以及通过对于跌口的调用来判然后它的采集的时间窗口也是不对齐的，所以就会存在有的账号可能只采了一段，中间又漏了一段，或者最早的一部分没有采集这种情况，
+需求1: 首先我想要说，能够发现这种问题。
+统计每个账号已采集的文章的发部时间（按月统计近2年，月份降序）公24列，情况,账号名作为行索引，每个单元格统计当月发布文章数。
+页面上每30行拆分1页支持分页展示。背景色阶展示
+
+要求数据可视化一定要美观。
+前段要用主流的前端框架，比如React等。
+后端你可以用现有的mysql 或者mongodb 数据库。你自行选择
+项目要求支持docker部署。
+并提供青龙面板的定时统计任务脚本代码，和部署手册。
+-----------
+
+下面是表结构信息
+
+================================================================================
+MySQL feeds 表结构
+================================================================================
+id: varchar (默认: None, 可为空: NO) 对应mp_id
+mp_name: varchar (默认: None, 可为空: YES) 公众号名称
+mp_cover: varchar (默认: None, 可为空: YES)
+mp_intro: varchar (默认: None, 可为空: YES)
+status: int (默认: None, 可为空: YES)
+sync_time: int (默认: None, 可为空: YES)
+update_time: int (默认: None, 可为空: YES)
+created_at: datetime (默认: None, 可为空: YES)
+updated_at: datetime (默认: None, 可为空: YES)
+faker_id: varchar (默认: None, 可为空: YES)
+
+
+
+MySQL feeds 表数据样本 (1条)
+================================================================================
+
+样本 1:
+  id: MP_WXS_3089577468
+  mp_name: 把自己产品化
+  mp_cover: http://mmbiz.qpic.cn/mmbiz_png/fVEoQRqBNunblsfqPjLwibonaV0fokcYwm1ib4XwIXKoiaqb44bfSibBp97XSVbW5eILNId3peGg4x2EFdWKPxjqgE6L7vyTVP8g1AQdMib3TqoA/0?wx_fmt=png
+  mp_intro: 折腾、迷茫中思考，躲在这里碎碎念，一点记录，一点碎语。不搞大道理，只把自己的生活和思考，当成一款用心打磨的产品，持续升级，悄悄增值。 这里有我的 AI 实践，更有我的心路历程。正好你跟我一起把自己产品化。
+  status: 1
+  sync_time: 1771673647
+  update_time: 1771673647
+  created_at: 2026-02-20 18:02:58
+  updated_at: 2026-02-21 19:34:08
+  faker_id: MzA4OTU3NzQ2OA==
+
+
+================================================================================
+MySQL 表结构
+================================================================================
+id: varchar (默认: None, 可为空: NO)
+mp_id: varchar (默认: None, 可为空: YES)
+title: varchar (默认: None, 可为空: YES)
+pic_url: varchar (默认: None, 可为空: YES)
+url: varchar (默认: None, 可为空: YES)
+description: mediumtext (默认: None, 可为空: YES)
+status: int (默认: None, 可为空: YES)
+publish_time: int (默认: None, 可为空: YES)
+created_at: datetime (默认: None, 可为空: YES)
+updated_at: datetime (默认: None, 可为空: YES)
+is_export: int (默认: None, 可为空: YES)
+is_read: int (默认: None, 可为空: YES)
+content: mediumtext (默认: None, 可为空: YES)
+
+================================================================================
+MySQL 数据样本 (5条)
+================================================================================
+
+样本 1:
+  id: 2399106260-2651843439_2
+  mp_id: MP_WXS_2399106260
+  title: “面试了10个公司，一个offer都没拿到，我该怎么办......”
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXHic9mHcEusia7BFDpDVo5U4rbbKjVjaibXG5VyLNRHG2yaqKh6E5lQBsrGzc4GOgibGGjKvjKqYpL9w/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/hOayFJtUV5b1gO9OJCCrBg
+  description: 面试请先做好这2个准备！
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:16
+  updated_at: 2026-02-21 20:46:16
+  is_export: None
+  is_read: 0
+  content: 
+
+================================================================================
+MongoDB 集合结构
+================================================================================
+_id: ObjectId
+url: str
+title: str
+description: str
+pre_value_score: int
+article_type: list
+pre_value_score_reason: str
+created_at: datetime
+updated_at: datetime
+clipper_metadata: dict
+full_content: str
+full_markdown: str
+mp_id: str
+publish_time: int
+source: str
+llm_summary_processed: bool
+reason: str
+socre: str
+tags: list
+书籍: str
+事件: str
+产品服务: str
+人物: str
+原则库: str
+四精练: str
+地点: str
+概念实体: str
+概要: str
+点子库: str
+生命之花: str
+相关问题: str
+组织公司: str
+量化的结论: str
+问题库: str
+
+================================================================================
+MongoDB 数据样本 (5条)
+================================================================================
+
+
+样本 :
+  _id: 6997eec9c68b34d9e0942865
+  url: https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A
+  title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开
+  description: 新增64页干货
+  pre_value_score: 6
+  article_type: ['AI', '人工智能']
+  pre_value_score_reason: DeepSeek R1技术细节对AI学习书稿有参考价值，训练方法论较新颖
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 19:55:40
+  clipper_metadata: {'title': '清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开', 'source': 'https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A', 'author': '[[关注前沿科技]]', 'published': 'published', 'created': '2026-02-20 13:19:16.237557', '...': '更多字段'}
+  full_content: ##### Jay 发自 凹非寺 量子位 | 公众号 QbitAI...
+  full_markdown: ---title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开...
+  mp_id: MP_WXS_3236757533
+  publish_time: 1767874083
+  source: 量子位
+  llm_summary_processed: True
+  reason: 文章虽涉及AI技术但偏向新闻报道性质，对我的金融风控、认知创业、个人成长等核心领域关联度较低。
+  socre: 5
+  tags: ['DeepSeek', 'R1', 'AI', '论文', '技术']
+  书籍: 
+  事件: R1论文发布#64页技术细节更新
+  产品服务: DeepSeek-R1#DeepSeek-R1-Zero#强化学习
+  人物: Ruiqi Ge#Mark Chen#扎克伯格
+  原则库: 1. 极致透明原则 - 详细披露技术实现细节可建立行业信任并推动技术进步。2. 系统化训练原则 - 四步训练路径（冷启动→推理RL→拒绝采样→对齐RL）确保模型能力全面。3. 团队留存原则 - 开放的...
+  四精练: 思维模型 - 渐进式能力涌现（从「wait」等反思词在8000步后突然出现峰值）；行动杠杆点 - 极致透明策略成为开源模型竞争的核心差异化优势。
+  地点: 凹非寺#硅谷
+  概念实体: Aha Moment#CoT#思维链
+  概要: DeepSeek发布[R1]论文新版，增64页技术细节，含训练路径与安全机制
+  点子库: 无相关点子
+  生命之花: 职业发展 - DeepSeek团队零流失甚至回流案例说明，选择重视技术透明度的组织更有利于长期发展；个人成长 - R1论文披露的完整训练路径是罕见的系统工程学习素材。
+  相关问题: DeepSeek为何披露如此详细的技术细节？；R1的四步训练路径如何实现？；Aha Moment是如何涌现的？；DeepSeek如何构建安全机制？；为何团队成员流失率低？；
+  组织公司: DeepSeek#OpenAI#Meta
+  量化的结论: ["反思性词汇出现次数相比训练初期增长5-7倍", "安全数据集包含10.6万条提示", "内部安全评测数据集共1120道题目，分4大类28子类", "18位核心贡献者全员仍在团队", "100多位作...
+  问题库: "- 错误：OpenAI/Meta用高薪挖角或表面温情（如送南瓜汤）争取人才 → 教训：真正的团队凝聚力来自技术理想主义和文化认同，而非短期利益收买。- 错误：开源模型若安全性工作不到位易被滥用 → 教..."

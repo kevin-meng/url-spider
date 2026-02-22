@@ -12,8 +12,8 @@ from database import articles_collection
 from services.llm_service import LLMService
 
 # 配置
-CONCURRENCY = 20  # 并发数（提高并发以加快处理速度）
-TARGET_DATE = "2026-02-20"  # 处理在此日期之前的文章
+CONCURRENCY = 25  # 并发数（提高并发以加快处理速度）
+TARGET_DATE = "2026-02-22"  # 处理在此日期之前的文章
 MAX_LENGTH = 10000  # 内容最大长度
 
 import re
@@ -55,43 +55,64 @@ async def process_article(article, llm_service, sem):
     title = article.get("title", "无标题")
     score = article.get("pre_value_score", 0)
 
-    try:
-        print(f"[处理] 正在总结 (评分: {score}) {title} ({url})")
+    max_retries = 10
+    retry_delay = 3600  # 1小时，单位秒
 
-        async with sem:
-            full_markdown = article.get("full_markdown", "")
-            if not full_markdown:
-                full_markdown = article.get("full_content", "")
-
-            if not full_markdown:
-                print(f"[跳过] {url} (无内容)")
-                return False
-
-            # 预处理 markdown 内容，去除图片、链接和元数据
-            processed_content = preprocess_markdown(full_markdown)
-
-            # 限制内容长度，进一步节约 token
-            if len(processed_content) > MAX_LENGTH:
-                processed_content = (
-                    processed_content[:MAX_LENGTH] + "..."
-                )  # 截断并添加省略号
-                print(f"[截断] 内容过长，已截断至 {MAX_LENGTH} 字符")
-
-            result = await llm_service.process_content(processed_content)
-
-            update_data = result
-            update_data["llm_summary_processed"] = True
-            update_data["updated_at"] = datetime.now()
-
-            articles_collection.update_one(
-                {"_id": article["_id"]}, {"$set": update_data}, upsert=True
+    for attempt in range(max_retries + 1):
+        try:
+            print(
+                f"[处理] 正在总结 (评分: {score}) {title} ({url}) (尝试 {attempt + 1}/{max_retries + 1})"
             )
-            print(f"[完成] 已更新 (评分: {score}) {title} ({url})")
-            return True
 
-    except Exception as e:
-        print(f"[错误] 处理 {url} 时出错: {e}")
-        return False
+            async with sem:
+                full_markdown = article.get("full_markdown", "")
+                if not full_markdown:
+                    full_markdown = article.get("full_content", "")
+
+                if not full_markdown:
+                    print(f"[跳过] {url} (无内容)")
+                    return False
+
+                # 预处理 markdown 内容，去除图片、链接和元数据
+                processed_content = preprocess_markdown(full_markdown)
+
+                # 限制内容长度，进一步节约 token
+                if len(processed_content) > MAX_LENGTH:
+                    processed_content = (
+                        processed_content[:MAX_LENGTH] + "..."
+                    )  # 截断并添加省略号
+                    print(f"[截断] 内容过长，已截断至 {MAX_LENGTH} 字符")
+
+                result = await llm_service.process_content(processed_content)
+
+                update_data = result
+                update_data["llm_summary_processed"] = True
+                update_data["updated_at"] = datetime.now()
+
+                articles_collection.update_one(
+                    {"_id": article["_id"]}, {"$set": update_data}, upsert=True
+                )
+                print(f"[完成] 已更新 (评分: {score}) {title} ({url})")
+                return True
+
+        except Exception as e:
+            error_message = str(e)
+            print(f"[错误] 处理 {url} 时出错: {e}")
+
+            # 检查是否是大模型接口的429错误
+            if "429" in error_message and "rate_limit_error" in error_message:
+                if attempt < max_retries:
+                    print(
+                        f"[限流] 遇到大模型限流错误，将在 {retry_delay // 3600} 小时后重试..."
+                    )
+                    await asyncio.sleep(retry_delay)
+                    continue
+                else:
+                    print(f"[限流] 已达到最大重试次数，放弃处理 {url}")
+                    return False
+            else:
+                # 其他错误直接返回失败
+                return False
 
 
 async def process_articles(score, articles, llm_service, sem):
@@ -114,7 +135,7 @@ async def process_articles(score, articles, llm_service, sem):
 
 async def backfill_summarize():
     """批量回刷历史数据"""
-    print(f"=== 开始批量总结存量文章 (created_at < {TARGET_DATE}) ===")
+    print(f"=== 开始批量总结存量文章 (updated_at < {TARGET_DATE}) ===")
     print(f"配置: CONCURRENCY={CONCURRENCY}\n")
 
     start_time = time.time()
@@ -153,7 +174,7 @@ async def backfill_summarize():
                 # 查找评分等于当前分数且未处理的文章
                 cursor = articles_collection.find(
                     {
-                        "created_at": {"$lt": target_datetime},
+                        "updated_at": {"$lt": target_datetime},
                         "pre_value_score": score,
                         "full_content": {"$exists": True, "$ne": ""},
                         "llm_summary_processed": {"$ne": True},

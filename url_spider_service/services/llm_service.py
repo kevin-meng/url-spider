@@ -124,12 +124,12 @@ Content:
 任务：一次性接收几十篇文章含title, description），为每篇输出：
 - title
 - pre_value_score（1-10，基于领域相关性、实用性、新颖性， 要非常严格的评分，大胆给低分，精力聚焦）
-- article_type（从预定义列表选，可多选）
+- article_type（从预定义列表选，只选1个）
 - pre_value_score_reason（一句话说明价值或排除原因）
 标签列表：["旅行","娱乐","灵感创意","方法论","工作思考","投资","健康","摘录","世界观","美食","金融","心理学","个人成长","科技","数据挖掘","AI","人工智能","编程","理财"]
 
 输入JSON格式：[{{"title":"...","description":"..."}}, ...]
-输出JSON格式：{{"articles":[{{"title":"...","pre_value_score":5,"article_type":["AI","方法论"],"pre_value_score_reason":"..."}}, ...]}}
+输出JSON格式：{{"articles":[{{"title":"...","pre_value_score":5,"article_type":人工智能","pre_value_score_reason":"..."}}, ...]}}
 
 规则：
 1. 仅输出JSON，无额外文字。

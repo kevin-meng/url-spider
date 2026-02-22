@@ -1,0 +1,316 @@
+
+MySQL feeds 表数据样本 (1条)
+================================================================================
+
+样本 1:
+  id: MP_WXS_3089577468
+  mp_name: 把自己产品化
+  mp_cover: http://mmbiz.qpic.cn/mmbiz_png/fVEoQRqBNunblsfqPjLwibonaV0fokcYwm1ib4XwIXKoiaqb44bfSibBp97XSVbW5eILNId3peGg4x2EFdWKPxjqgE6L7vyTVP8g1AQdMib3TqoA/0?wx_fmt=png
+  mp_intro: 折腾、迷茫中思考，躲在这里碎碎念，一点记录，一点碎语。不搞大道理，只把自己的生活和思考，当成一款用心打磨的产品，持续升级，悄悄增值。 这里有我的 AI 实践，更有我的心路历程。正好你跟我一起把自己产品化。
+  status: 1
+  sync_time: 1771673647
+  update_time: 1771673647
+  created_at: 2026-02-20 18:02:58
+  updated_at: 2026-02-21 19:34:08
+  faker_id: MzA4OTU3NzQ2OA==
+
+================================================================================
+MySQL feeds 表结构
+================================================================================
+id: varchar (默认: None, 可为空: NO)
+mp_name: varchar (默认: None, 可为空: YES)
+mp_cover: varchar (默认: None, 可为空: YES)
+mp_intro: varchar (默认: None, 可为空: YES)
+status: int (默认: None, 可为空: YES)
+sync_time: int (默认: None, 可为空: YES)
+update_time: int (默认: None, 可为空: YES)
+created_at: datetime (默认: None, 可为空: YES)
+updated_at: datetime (默认: None, 可为空: YES)
+faker_id: varchar (默认: None, 可为空: YES)
+
+================================================================================
+MySQL 表结构
+================================================================================
+id: varchar (默认: None, 可为空: NO)
+mp_id: varchar (默认: None, 可为空: YES)
+title: varchar (默认: None, 可为空: YES)
+pic_url: varchar (默认: None, 可为空: YES)
+url: varchar (默认: None, 可为空: YES)
+description: mediumtext (默认: None, 可为空: YES)
+status: int (默认: None, 可为空: YES)
+publish_time: int (默认: None, 可为空: YES)
+created_at: datetime (默认: None, 可为空: YES)
+updated_at: datetime (默认: None, 可为空: YES)
+is_export: int (默认: None, 可为空: YES)
+is_read: int (默认: None, 可为空: YES)
+content: mediumtext (默认: None, 可为空: YES)
+
+================================================================================
+MySQL 数据样本 (5条)
+================================================================================
+
+样本 1:
+  id: 2399106260-2651843439_5
+  mp_id: MP_WXS_2399106260
+  title: 普通人创业，没有选择
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXGWGtvKz7HcAUmj3gRWZiaaHG0AW23ribaG2nYLDtyRVXu6nPJsaNIvFmc3mjoa71ibJuWDYHR2We2A/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/ZGO7-JWST9revN4uaCGygA
+  description: 你看似有很多选择，但你其实没有选择。
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:17
+  updated_at: 2026-02-21 20:46:17
+  is_export: None
+  is_read: 0
+  content: 
+
+样本 2:
+  id: 2399106260-2651843439_4
+  mp_id: MP_WXS_2399106260
+  title: 电商产品新人必看：如何系统构建电商产品认知体系？
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXHic9mHcEusia7BFDpDVo5U4rheQfU7qhlxgXMSkcQxH8Tv8KaYve4w9miaCOZJKTR14qJ93ZWxe0PQ/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/aluDqU8UgXj9KvaHdRRwGA
+  description: 电商产品新人如何系统入门与进阶？
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:17
+  updated_at: 2026-02-21 20:46:17
+  is_export: None
+  is_read: 0
+  content: 
+
+样本 3:
+  id: 2399106260-2651843439_3
+  mp_id: MP_WXS_2399106260
+  title: 银发经济很好，但怎么没听说哪个品牌赚到钱？
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXGWGtvKz7HcAUmj3gRWZiaavWOfZxoY6ajAeibM0IZjbkwP66vCSoK2n5o9KhF1Yoc04fARy4ugZbQ/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/TucMxOX27VBLREgMQXRdiA
+  description: 银发品牌的涌现，需要经过更长的时间酝酿。
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:16
+  updated_at: 2026-02-21 20:46:16
+  is_export: None
+  is_read: 0
+  content: 
+
+样本 4:
+  id: 2399106260-2651843439_1
+  mp_id: MP_WXS_2399106260
+  title: 拆解Notion：PLG模式，估值百亿，团队不到200人
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXGWGtvKz7HcAUmj3gRWZiaa7yS6ofs0jh3aCjktFQmv8bN94RDicPTtmVEZ9aVqiamuib5J1v6acP6KA/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/Oqj8CTHU8_jCPDVeic9P8g
+  description: Notion 这款产品为什么能够获得如此迅猛的发展？
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:16
+  updated_at: 2026-02-21 20:46:16
+  is_export: None
+  is_read: 0
+  content: 
+
+样本 5:
+  id: 2399106260-2651843439_2
+  mp_id: MP_WXS_2399106260
+  title: “面试了10个公司，一个offer都没拿到，我该怎么办......”
+  pic_url: https://mmbiz.qpic.cn/mmbiz_jpg/icHOSb47jqpXHic9mHcEusia7BFDpDVo5U4rbbKjVjaibXG5VyLNRHG2yaqKh6E5lQBsrGzc4GOgibGGjKvjKqYpL9w/0?wx_fmt=jpeg
+  url: https://mp.weixin.qq.com/s/hOayFJtUV5b1gO9OJCCrBg
+  description: 面试请先做好这2个准备！
+  status: 1
+  publish_time: 1662890400
+  created_at: 2026-02-21 20:46:16
+  updated_at: 2026-02-21 20:46:16
+  is_export: None
+  is_read: 0
+  content: 
+
+================================================================================
+MongoDB 集合结构
+================================================================================
+_id: ObjectId
+url: str
+title: str
+description: str
+pre_value_score: int
+article_type: list
+pre_value_score_reason: str
+created_at: datetime
+updated_at: datetime
+clipper_metadata: dict
+full_content: str
+full_markdown: str
+mp_id: str
+publish_time: int
+source: str
+llm_summary_processed: bool
+reason: str
+socre: str
+tags: list
+书籍: str
+事件: str
+产品服务: str
+人物: str
+原则库: str
+四精练: str
+地点: str
+概念实体: str
+概要: str
+点子库: str
+生命之花: str
+相关问题: str
+组织公司: str
+量化的结论: str
+问题库: str
+
+================================================================================
+MongoDB 数据样本 (5条)
+================================================================================
+
+样本 1:
+  _id: 6997eec9c68b34d9e0942865
+  url: https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A
+  title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开
+  description: 新增64页干货
+  pre_value_score: 6
+  article_type: ['AI', '人工智能']
+  pre_value_score_reason: DeepSeek R1技术细节对AI学习书稿有参考价值，训练方法论较新颖
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 19:55:40
+  clipper_metadata: {'title': '清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开', 'source': 'https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A', 'author': '[[关注前沿科技]]', 'published': 'published', 'created': '2026-02-20 13:19:16.237557', 'description': '新增64页干货', 'tags': 'clippings', 'TODO': '', 'notes': '', '概要': '', '相关问题': '', '人物': '', '书籍': '', '组织公司': '', '概念实体': '', '地点': '', '事件': '', '产品服务': '', '标星': '', '是否已读': ''}
+  full_content: ##### Jay 发自 凹非寺 量子位 | 公众号 QbitAI
+
+盼星星盼月亮，千呼万唤的DeepSeek-R2没盼到，**R1又抱着琵琶出来溜了一圈**。
+
+还记得去年登上《Nature》封面的...
+  full_markdown: ---
+title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开
+source: https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV...
+  mp_id: MP_WXS_3236757533
+  publish_time: 1767874083
+  source: 量子位
+  llm_summary_processed: True
+  reason: 文章虽涉及AI技术但偏向新闻报道性质，对我的金融风控、认知创业、个人成长等核心领域关联度较低。
+  socre: 5
+  tags: ['DeepSeek', 'R1', 'AI', '论文', '技术']
+  书籍: 
+  事件: R1论文发布#64页技术细节更新
+  产品服务: DeepSeek-R1#DeepSeek-R1-Zero#强化学习
+  人物: Ruiqi Ge#Mark Chen#扎克伯格
+  原则库: 1. 极致透明原则 - 详细披露技术实现细节可建立行业信任并推动技术进步。2. 系统化训练原则 - 四步训练路径（冷启动→推理RL→拒绝采样→对齐RL）确保模型能力全面。3. 团队留存原则 - 开放的...
+  四精练: 思维模型 - 渐进式能力涌现（从「wait」等反思词在8000步后突然出现峰值）；行动杠杆点 - 极致透明策略成为开源模型竞争的核心差异化优势。
+  地点: 凹非寺#硅谷
+  概念实体: Aha Moment#CoT#思维链
+  概要: DeepSeek发布[R1]论文新版，增64页技术细节，含训练路径与安全机制
+  点子库: 无相关点子
+  生命之花: 职业发展 - DeepSeek团队零流失甚至回流案例说明，选择重视技术透明度的组织更有利于长期发展；个人成长 - R1论文披露的完整训练路径是罕见的系统工程学习素材。
+  相关问题: DeepSeek为何披露如此详细的技术细节？；R1的四步训练路径如何实现？；Aha Moment是如何涌现的？；DeepSeek如何构建安全机制？；为何团队成员流失率低？；
+  组织公司: DeepSeek#OpenAI#Meta
+  量化的结论: ["反思性词汇出现次数相比训练初期增长5-7倍", "安全数据集包含10.6万条提示", "内部安全评测数据集共1120道题目，分4大类28子类", "18位核心贡献者全员仍在团队", "100多位作...
+  问题库: - 错误：OpenAI/Meta用高薪挖角或表面温情（如送南瓜汤）争取人才 → 教训：真正的团队凝聚力来自技术理想主义和文化认同，而非短期利益收买。- 错误：开源模型若安全性工作不到位易被滥用 → 教...
+
+样本 2:
+  _id: 6997eec9c68b34d9e0942866
+  url: https://mp.weixin.qq.com/s/0hiqCiCNNYR8bLsOyG5JDA
+  title: 训具身模型遇到的很多问题，在数据采集时就已经注定了丨鹿明联席CTO丁琰分享
+  description: “国内UMI能训出模型的就三家”
+  pre_value_score: 5
+  article_type: ['AI', '数据挖掘']
+  pre_value_score_reason: 数据采集方法论对AI模型训练有价值，可作为AI书稿素材
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 15:44:35
+  clipper_metadata: {'title': '训具身模型遇到的很多问题，在数据采集时就已经注定了丨鹿明联席CTO丁琰分享', 'source': 'https://mp.weixin.qq.com/s/0hiqCiCNNYR8bLsOyG5JDA', 'author': '[[关注前沿科技]]', 'published': 'published', 'created': '2026-02-20 13:19:16.871584', 'description': '“国内UMI能训出模型的就三家”', 'tags': 'clippings', 'TODO': '', 'notes': '', '概要': '', '相关问题': '', '人物': '', '书籍': '', '组织公司': '', '概念实体': '', '地点': '', '事件': '', '产品服务': '', '标星': '', '是否已读': ''}
+  full_content: ##### 衡宇 发自 凹非寺 量子位 | 公众号 QbitAI
+
+“我们只交付100%可以复现的轨迹。”
+
+具身智能创企鹿明机器人媒体沟通会上，联席CTO丁琰对具身智能数据采集现状、困境，以及最新兴...
+  full_markdown: ---
+title: 训具身模型遇到的很多问题，在数据采集时就已经注定了丨鹿明联席CTO丁琰分享
+source: https://mp.weixin.qq.com/s/0hiqCiCNNYR8bLsO...
+  mp_id: MP_WXS_3236757533
+  publish_time: 1767874083
+  source: 量子位
+
+样本 3:
+  _id: 6997eec9c68b34d9e0942867
+  url: https://mp.weixin.qq.com/s/haBqU4YNidSKKj4FmpfGhg
+  title: 三花：AI机器人时代，笑到最后还是跨界“老腊肉”？
+  description: 在人形机器人领域，三花都做了哪些布局，三花的能力又在哪里？
+  pre_value_score: 4
+  article_type: ['AI', '科技']
+  pre_value_score_reason: AI机器人行业分析，跨界话题可作为演讲素材但深度一般
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 15:43:30
+  clipper_metadata: {'title': '三花：AI机器人时代，笑到最后还是跨界“老腊肉”？', 'source': 'https://mp.weixin.qq.com/s/haBqU4YNidSKKj4FmpfGhg', 'author': '[[海豚君]]', 'published': 'published', 'created': '2026-02-20 13:19:16.824233', 'description': '在人形机器人领域，三花都做了哪些布局，三花的能力又在哪里？', 'tags': 'clippings', 'TODO': '', 'notes': '', '概要': '', '相关问题': '', '人物': '', '书籍': '', '组织公司': '', '概念实体': '', '地点': '', '事件': '', '产品服务': '', '标星': '', '是否已读': ''}
+  full_content: ![图片](https://mmbiz.qpic.cn/sz_mmbiz_jpg/1QvVcNsR8VHYBCF3DqRNQZMS0cI9Eh5LccLazERIJJHI9aq0gYu0Zw04KvE...
+  full_markdown: ---
+title: 三花：AI机器人时代，笑到最后还是跨界“老腊肉”？
+source: https://mp.weixin.qq.com/s/haBqU4YNidSKKj4FmpfGhg
+autho...
+  mp_id: MP_WXS_3191573069
+  publish_time: 1767872946
+  source: 海豚研究
+
+样本 4:
+  _id: 6997eec9c68b34d9e0942868
+  url: https://mp.weixin.qq.com/s/4czge8KTLefvNxyi8hlZAg
+  title: 多家互联网大厂集聚“大模型第一股”
+  description: AI大模型厂商会否迎来一波IPO热潮？
+  pre_value_score: 2
+  article_type: ['投资', '金融']
+  pre_value_score_reason: IPO新闻过于表面，缺乏投资深度分析，实用价值低
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 15:37:46
+  clipper_metadata: {'title': '多家互联网大厂集聚“大模型第一股”', 'source': 'https://mp.weixin.qq.com/s/4czge8KTLefvNxyi8hlZAg', 'author': '[[王方然]]', 'published': 'published', 'created': '2026-02-20 13:19:27.280231', 'description': 'AI大模型厂商会否迎来一波IPO热潮？', 'tags': 'clippings', 'TODO': '', 'notes': '', '概要': '', '相关问题': '', '人物': '', '书籍': '', '组织公司': '', '概念实体': '', '地点': '', '事件': '', '产品服务': '', '标星': '', '是否已读': ''}
+  full_content: 2026.01.**08**
+
+![图片](https://mmbiz.qpic.cn/mmbiz_jpg/75aM8OyvVZVvpNIgtsbMqN9GplSfSic0dhHNFiaChrTN6y...
+  full_markdown: ---
+title: 多家互联网大厂集聚“大模型第一股”
+source: https://mp.weixin.qq.com/s/4czge8KTLefvNxyi8hlZAg
+author: [[王方然...
+  mp_id: MP_WXS_2391375304
+  publish_time: 1767874690
+  source: 第一财经
+
+样本 5:
+  _id: 6997eec9c68b34d9e0942865
+  url: https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A
+  title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开
+  description: 新增64页干货
+  pre_value_score: 6
+  article_type: ['AI', '人工智能']
+  pre_value_score_reason: DeepSeek R1技术细节对AI学习书稿有参考价值，训练方法论较新颖
+  created_at: 2026-02-20 13:19:05
+  updated_at: 2026-02-21 19:55:40
+  clipper_metadata: {'title': '清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开', 'source': 'https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV3A', 'author': '[[关注前沿科技]]', 'published': 'published', 'created': '2026-02-20 13:19:16.237557', '...': '更多字段'}
+  full_content: ##### Jay 发自 凹非寺 量子位 | 公众号 QbitAI
+
+盼星星盼月亮，千呼万唤的DeepSeek-R2没盼到，**R1又抱着琵琶出来溜了一圈**。
+
+还记得去年登上《Nature》封面的...
+  full_markdown: ---
+title: 清库存！DeepSeek突然补全R1技术报告，训练路径首次详细公开
+source: https://mp.weixin.qq.com/s/6nAXbaeJCDlV3UOQLtMV...
+  mp_id: MP_WXS_3236757533
+  publish_time: 1767874083
+  source: 量子位
+  llm_summary_processed: True
+  reason: 文章虽涉及AI技术但偏向新闻报道性质，对我的金融风控、认知创业、个人成长等核心领域关联度较低。
+  socre: 5
+  tags: ['DeepSeek', 'R1', 'AI', '论文', '技术']
+  书籍: 
+  事件: R1论文发布#64页技术细节更新
+  产品服务: DeepSeek-R1#DeepSeek-R1-Zero#强化学习
+  人物: Ruiqi Ge#Mark Chen#扎克伯格
+  原则库: 1. 极致透明原则 - 详细披露技术实现细节可建立行业信任并推动技术进步。2. 系统化训练原则 - 四步训练路径（冷启动→推理RL→拒绝采样→对齐RL）确保模型能力全面。3. 团队留存原则 - 开放的...
+  四精练: 思维模型 - 渐进式能力涌现（从「wait」等反思词在8000步后突然出现峰值）；行动杠杆点 - 极致透明策略成为开源模型竞争的核心差异化优势。
+  地点: 凹非寺#硅谷
+  概念实体: Aha Moment#CoT#思维链
+  概要: DeepSeek发布[R1]论文新版，增64页技术细节，含训练路径与安全机制
+  点子库: 无相关点子
+  生命之花: 职业发展 - DeepSeek团队零流失甚至回流案例说明，选择重视技术透明度的组织更有利于长期发展；个人成长 - R1论文披露的完整训练路径是罕见的系统工程学习素材。
+  相关问题: DeepSeek为何披露如此详细的技术细节？；R1的四步训练路径如何实现？；Aha Moment是如何涌现的？；DeepSeek如何构建安全机制？；为何团队成员流失率低？；
+  组织公司: DeepSeek#OpenAI#Meta
+  量化的结论: ["反思性词汇出现次数相比训练初期增长5-7倍", "安全数据集包含10.6万条提示", "内部安全评测数据集共1120道题目，分4大类28子类", "18位核心贡献者全员仍在团队", "100多位作...
+  问题库: - 错误：OpenAI/Meta用高薪挖角或表面温情（如送南瓜汤）争取人才 → 教训：真正的团队凝聚力来自技术理想主义和文化认同，而非短期利益收买。- 错误：开源模型若安全性工作不到位易被滥用 → 教...

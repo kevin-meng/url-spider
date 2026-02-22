@@ -22,12 +22,11 @@ print("=" * 100)
 for i, article in enumerate(articles):
     print(f"\n文章 {i+1}:")
     print("-" * 80)
-
     # 打印所有字段键值对
-    for key, value in article.items():
-        print(f"🤔{key}--->")
-        print(f"{value}"[:40])
-        print("=" * 80)
+    # for key, value in article.items():
+    #     print(f"🤔{key}--->")
+    #     print(f"{value}"[:40])
+    #     print("=" * 80)
 
     print("-" * 80)
 

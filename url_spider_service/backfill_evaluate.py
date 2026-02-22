@@ -33,7 +33,7 @@ async def process_batch(batch_data, llm_service, batch_num):
             update_data = {
                 "title": eval_item.get("title", item["title"]),
                 "pre_value_score": eval_item.get("pre_value_score", 0),
-                "article_type": eval_item.get("article_type", []),
+                "article_type": eval_item.get("article_type", ""),
                 "pre_value_score_reason": eval_item.get("pre_value_score_reason", ""),
                 "updated_at": datetime.now(),
             }

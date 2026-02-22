@@ -12,6 +12,7 @@ from services.llm_service import LLMService
 
 BATCH_SIZE = 20
 
+
 async def test_single_batch():
     print(f"=== 测试批次: 从MySQL获取 {BATCH_SIZE} 条未评估文章 ===\n")
 
@@ -22,12 +23,14 @@ async def test_single_batch():
 
     try:
         # 从MySQL获取不在MongoDB中的文章
-        query = text("""
+        query = text(
+            """
             SELECT url, title, description, created_at
             FROM articles
             ORDER BY publish_time DESC
             LIMIT :limit
-        """)
+        """
+        )
         result = mysql_db.execute(query, {"limit": BATCH_SIZE * 2})
         rows = result.fetchall()
 
@@ -42,12 +45,14 @@ async def test_single_batch():
             if existing and existing.get("pre_value_score", 0) > 0:
                 continue
 
-            batch_to_process.append({
-                "url": url,
-                "title": title,
-                "description": description,
-                "created_at": created_at,
-            })
+            batch_to_process.append(
+                {
+                    "url": url,
+                    "title": title,
+                    "description": description,
+                    "created_at": created_at,
+                }
+            )
 
             if len(batch_to_process) >= BATCH_SIZE:
                 break
@@ -60,7 +65,10 @@ async def test_single_batch():
 
         print(f"本批次: 待评估 {len(batch_to_process)} 篇\n")
 
-        llm_input = [{"title": item["title"], "description": item["description"]} for item in batch_to_process]
+        llm_input = [
+            {"title": item["title"], "description": item["description"]}
+            for item in batch_to_process
+        ]
 
         print("=== 待评估的文章 ===")
         for i, item in enumerate(llm_input):
@@ -83,20 +91,20 @@ async def test_single_batch():
                 eval_item = evaluated_articles[i]
                 print(f"\n{i+1}. {item['title'][:40]}...")
                 print(f"   评分: {eval_item.get('pre_value_score', 0)}")
-                print(f"   类型: {eval_item.get('article_type', [])}")
+                print(f"   类型: {eval_item.get('article_type', '')}")
                 print(f"   原因: {eval_item.get('pre_value_score_reason', '')[:60]}...")
 
                 update_data = {
                     "title": eval_item.get("title", item["title"]),
                     "pre_value_score": eval_item.get("pre_value_score", 0),
-                    "article_type": eval_item.get("article_type", []),
-                    "pre_value_score_reason": eval_item.get("pre_value_score_reason", ""),
+                    "article_type": eval_item.get("article_type", ""),
+                    "pre_value_score_reason": eval_item.get(
+                        "pre_value_score_reason", ""
+                    ),
                     "updated_at": datetime.now(),
                 }
                 articles_collection.update_one(
-                    {"url": item["url"]},
-                    {"$set": update_data},
-                    upsert=True
+                    {"url": item["url"]}, {"$set": update_data}, upsert=True
                 )
 
         print("\n=== 测试完成 ===")
@@ -106,6 +114,7 @@ async def test_single_batch():
         traceback.print_exc()
     finally:
         mysql_db.close()
+
 
 if __name__ == "__main__":
     asyncio.run(test_single_batch())

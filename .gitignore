@@ -1,6 +1,45 @@
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg-info/
+dist/
+build/
 .DS_Store
 venv/
-url-to-markdown/node_modules/
-url-to-markdown/
+.venv/
+env/
+
+# 日志文件
+*.log
+
+# 临时文件
+tmp/
+temp/
+idea_output/
+
+# 前端依赖（所有层级的node_modules）
+**/node_modules/
+**/node_modules/.cache/
+
+# 构建产物
+**/build/
+**/dist/
+
+# IDE和编辑器文件
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 数据库相关（可选，根据需要）
+*.db
+*.sqlite
+*.sqlite3
+
+# 环境变量文件
+.env
+.env.local
