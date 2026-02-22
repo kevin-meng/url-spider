@@ -542,7 +542,13 @@ function ArticleManagement({ filters, dateRange }) {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ flex: 1, marginRight: 12 }}>
                       <div style={{ fontWeight: 500, marginBottom: 4, lineHeight: '1.4' }}>
-                        {article.title}
+                        {article.url ? (
+                          <a href={article.url} target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none', color: '#1890ff' }}>
+                            {article.title}
+                          </a>
+                        ) : (
+                          article.title
+                        )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
                         <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name || '未知公众号'}</span>
