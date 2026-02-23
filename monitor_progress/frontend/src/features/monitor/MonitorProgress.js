@@ -5,7 +5,7 @@ import ReactECharts from 'echarts-for-react';
 import axios from 'axios';
 import dayjs from 'dayjs';
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = ''; // 使用相对路径，与 App.js 保持一致
 
 const MonitorProgress = ({ selectedDate, setSelectedDate, scoreType, setScoreType }) => {
   const [stats, setStats] = useState(null);
