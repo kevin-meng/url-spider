@@ -22,7 +22,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     ports:
-      - "8000:8000"
+      - "8013:8000"
     networks:
       - monitor-network
 
@@ -37,7 +37,7 @@ services:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
     ports:
-      - "3000:80"
+      - "3013:80"
     depends_on:
       - backend
     networks:

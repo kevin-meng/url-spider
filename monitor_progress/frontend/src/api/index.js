@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE = process.env.REACT_APP_API_BASE || 'http://localhost:8000';
+// 使用相对路径，这样在Docker环境中也能正确连接到后端服务
+const API_BASE = '';
 
 const api = axios.create({
   baseURL: API_BASE,

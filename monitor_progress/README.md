@@ -124,6 +124,10 @@ docker-compose up -d --build
 - **GET /api/monthly-stats**: 获取月度统计数据
   - 参数: `page` (可选，默认为 1), `page_size` (可选，默认为 30)
   - 返回: 月度统计数据，按公众号和月份分组
+  - 代码 
+    - ```
+    cd /Users/kevin/obsidian_notes/url_spider/new && source venv/bin/activate && python monitor_progress/backend/backfill_stats.py
+    ```
 
 ### 2. 文章管理接口
 
