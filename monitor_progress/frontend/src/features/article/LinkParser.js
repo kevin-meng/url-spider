@@ -5,7 +5,7 @@ import axios from 'axios';
 const { TextArea } = Input;
 
 // 后端接口地址
-const MONITOR_API_BASE = 'http://localhost:8000'; // 直接使用后端服务地址
+const MONITOR_API_BASE = ''; // 使用相对路径，与 App.js 保持一致
 
 const LinkParser = () => {
   const [urls, setUrls] = useState('');
