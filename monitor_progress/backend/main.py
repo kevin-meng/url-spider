@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, Query, HTTPException
+from fastapi import FastAPI, Depends, Query, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from datetime import datetime, timedelta
@@ -247,26 +247,57 @@ class ArticleUpdate(BaseModel):
 
 
 @app.get("/api/articles")
-def get_articles(
-    page: int = Query(1, ge=1, description="页码"),
-    page_size: int = Query(10, ge=1, le=100, description="每页数量"),
-    score_type: str = Query(
-        "pre_value_score", description="评分类型: pre_value_score 或 socre"
-    ),
-    scores: Optional[List[int]] = Query(None, description="评分列表，多个值"),
-    tags: Optional[str] = Query(None, description="标签, 多个用逗号分隔"),
-    is_collected: Optional[List[bool]] = Query(None, description="是否收藏列表"),
-    is_followed: Optional[List[bool]] = Query(None, description="是否关注列表"),
-    is_enabled: Optional[List[bool]] = Query(None, description="是否启用列表"),
-    is_read: Optional[List[bool]] = Query(None, description="是否已读列表"),
-    sort_by: str = Query(
-        "publish_time",
-        description="排序字段: publish_time, pre_value_score, socre, updated_at",
-    ),
-    sort_order: str = Query("desc", description="排序方向: asc, desc"),
-    start_date: Optional[str] = Query(None, description="开始日期: YYYY-MM-DD"),
-    end_date: Optional[str] = Query(None, description="结束日期: YYYY-MM-DD"),
-):
+def get_articles(request: Request):
+    # 获取所有查询参数
+    query_params = dict(request.query_params)
+
+    # 打印原始查询参数
+    print(f"原始查询参数: {query_params}")
+
+    # 手动解析参数
+    page = int(query_params.get("page", 1))
+    page_size = int(query_params.get("page_size", 10))
+    score_type = query_params.get("score_type", "pre_value_score")
+
+    # 处理scores参数
+    scores = None
+    if "scores" in query_params:
+        scores = query_params["scores"]
+        if isinstance(scores, list):
+            scores = [int(s) for s in scores]
+        else:
+            scores = [int(s) for s in scores.split(",")]
+
+    # 处理tags参数
+    tags = query_params.get("tags")
+
+    # 处理布尔类型参数
+    def parse_bool(param_name):
+        if param_name in query_params:
+            value = query_params[param_name]
+            if isinstance(value, list):
+                # 如果是列表，取第一个值
+                return value[0].lower() == "true"
+            else:
+                return value.lower() == "true"
+        return None
+
+    is_collected = parse_bool("is_collected")
+    is_followed = parse_bool("is_followed")
+    is_enabled = parse_bool("is_enabled")
+    is_read = parse_bool("is_read")
+
+    # 处理其他参数
+    sort_by = query_params.get("sort_by", "publish_time")
+    sort_order = query_params.get("sort_order", "desc")
+    start_date = query_params.get("start_date")
+    end_date = query_params.get("end_date")
+
+    # 打印解析后的参数
+    print(
+        f"解析后的参数: page={page}, page_size={page_size}, score_type={score_type}, scores={scores}, tags={tags}, is_collected={is_collected}, is_followed={is_followed}, is_enabled={is_enabled}, is_read={is_read}, sort_by={sort_by}, sort_order={sort_order}, start_date={start_date}, end_date={end_date}"
+    )
+
     filter_query = {}
 
     if scores:
@@ -277,14 +308,14 @@ def get_articles(
         if tag_list:
             filter_query["article_type"] = {"$in": tag_list}
 
-    if is_collected:
-        filter_query["is_collected"] = {"$in": is_collected}
-    if is_followed:
-        filter_query["is_followed"] = {"$in": is_followed}
-    if is_enabled:
-        filter_query["is_enabled"] = {"$in": is_enabled}
-    if is_read:
-        filter_query["is_read"] = {"$in": is_read}
+    if is_collected is not None:
+        filter_query["is_collected"] = is_collected
+    if is_followed is not None:
+        filter_query["is_followed"] = is_followed
+    if is_enabled is not None:
+        filter_query["is_enabled"] = is_enabled
+    if is_read is not None:
+        filter_query["is_read"] = is_read
 
     # 添加时间范围筛选
     if start_date or end_date:
@@ -298,14 +329,23 @@ def get_articles(
             end_datetime = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(days=1)
             filter_query["updated_at"]["$lt"] = end_datetime
 
+    # 打印数据库查询条件
+    print(f"数据库查询条件: {filter_query}")
+
     sort_direction = -1 if sort_order == "desc" else 1
     sort_field = sort_by
 
     total = articles_collection.count_documents(filter_query)
+    # 打印数据库查询数量
+    print(f"数据库查询数量: {total}")
+
     skip = (page - 1) * page_size
 
     articles = list(
-        articles_collection.find(filter_query)
+        articles_collection.find(
+            filter_query,
+            {"mp_id": 0, "clipper_metadata": 0, "full_content": 0, "full_markdown": 0},
+        )
         .sort([(sort_field, sort_direction)])
         .skip(skip)
         .limit(page_size)
@@ -315,6 +355,9 @@ def get_articles(
         article["_id"] = str(article["_id"])
 
     total_pages = (total + page_size - 1) // page_size
+
+    # 打印接口返回数量
+    print(f"接口返回数量: {len(articles)}, 总数量: {total}")
 
     return {
         "data": articles,
@@ -330,7 +373,10 @@ def get_article(article_id: str):
     mongo_db = get_mongo_db()
 
     try:
-        article = articles_collection.find_one({"_id": ObjectId(article_id)})
+        article = articles_collection.find_one(
+            {"_id": ObjectId(article_id)},
+            {"mp_id": 0, "clipper_metadata": 0, "full_content": 0, "full_markdown": 0},
+        )
         if not article:
             raise HTTPException(status_code=404, detail="Article not found")
         article["_id"] = str(article["_id"])

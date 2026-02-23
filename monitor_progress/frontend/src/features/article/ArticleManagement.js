@@ -57,25 +57,104 @@ function ArticleManagement({ filters, dateRange }) {
   const fetchArticlesInternal = useCallback(async () => {
     setLoading(true);
     try {
-      const params = { page: currentPage, page_size: pageSize };
-      if (filters.scoreType) params.score_type = filters.scoreType;
-      if (filters.tags) params.tags = filters.tags;
-      if (filters.isCollected && filters.isCollected.length > 0) params.is_collected = filters.isCollected;
-      if (filters.isFollowed && filters.isFollowed.length > 0) params.is_followed = filters.isFollowed;
-      if (filters.isDiscarded && filters.isDiscarded.length > 0) params.is_enabled = filters.isDiscarded.map(val => !val);
-      if (filters.isRead && filters.isRead.length > 0) params.is_read = filters.isRead;
-      if (filters.scores && filters.scores.length > 0) params.scores = filters.scores;
-      if (filters.sortBy) params.sort_by = filters.sortBy;
-      if (filters.sortOrder) params.sort_order = filters.sortOrder;
-      if (dateRange && dateRange[0]) params.start_date = dateRange[0].format('YYYY-MM-DD');
-      if (dateRange && dateRange[1]) params.end_date = dateRange[1].format('YYYY-MM-DD');
+      // 打印原始filters对象，以便验证scores参数
+      console.log('原始filters对象:', filters);
+      console.log('原始dateRange对象:', dateRange);
+      
+      // 使用let声明params变量，以便可以重新赋值
+      let params = {
+        page: currentPage,
+        page_size: pageSize,
+        score_type: filters.scoreType || 'socre',
+        sort_by: filters.sortBy || 'socre',
+        sort_order: filters.sortOrder || 'desc'
+      };
+      
+      // 添加scores参数，作为逗号分隔的字符串传递
+      if (filters.scores && filters.scores.length > 0 && filters.scores.length < 11) {
+        params.scores = filters.scores.join(',');
+        console.log('添加的scores参数:', filters.scores.join(','));
+      }
+      
+      // 添加tags参数
+      if (filters.tags) {
+        params.tags = filters.tags;
+        console.log('添加的tags参数:', filters.tags);
+      }
+      
+      // 添加布尔类型参数，确保作为布尔值传递
+      if (filters.isCollected && filters.isCollected.length === 1) {
+        params.is_collected = filters.isCollected[0];
+        console.log('添加的is_collected参数:', filters.isCollected[0]);
+      }
+      
+      if (filters.isFollowed && filters.isFollowed.length === 1) {
+        params.is_followed = filters.isFollowed[0];
+        console.log('添加的is_followed参数:', filters.isFollowed[0]);
+      }
+      
+      if (filters.isDiscarded && filters.isDiscarded.length === 1) {
+        params.is_enabled = !filters.isDiscarded[0];
+        console.log('添加的is_enabled参数:', !filters.isDiscarded[0]);
+      }
+      
+      if (filters.isRead && filters.isRead.length === 1) {
+        params.is_read = filters.isRead[0];
+        console.log('添加的is_read参数:', filters.isRead[0]);
+      }
+      
+      // 添加日期范围参数
+      if (dateRange && dateRange[0]) {
+        params.start_date = dateRange[0].format('YYYY-MM-DD');
+        console.log('添加的start_date参数:', params.start_date);
+      }
+      if (dateRange && dateRange[1]) {
+        params.end_date = dateRange[1].format('YYYY-MM-DD');
+        console.log('添加的end_date参数:', params.end_date);
+      }
 
-      const response = await axios.get(`${API_BASE}/api/articles`, { params });
+      // 打印最终的筛选参数到console，以便验证
+      console.log('最终筛选参数:', params);
+      console.log('params.scores类型:', typeof params.scores);
+      console.log('params.scores值:', params.scores);
+
+      // 构建并打印完整的请求URL，以便与后端直接调用进行对比
+      const baseUrl = API_BASE || 'http://localhost:8000';
+      const url = new URL('/api/articles', baseUrl);
+      Object.entries(params).forEach(([key, value]) => {
+        console.log('处理参数:', key, '类型:', typeof value, '值:', value);
+        if (Array.isArray(value)) {
+          value.forEach(item => url.searchParams.append(key, item));
+        } else {
+          url.searchParams.append(key, value);
+        }
+      });
+      console.log('完整请求URL:', url.toString());
+
+      // 自定义axios参数序列化，确保scores作为字符串传递
+      const response = await axios.get(`${API_BASE}/api/articles`, {
+        params: params,
+        paramsSerializer: (params) => {
+          return Object.entries(params)
+            .map(([key, value]) => {
+              if (Array.isArray(value)) {
+                return value.map(item => `${encodeURIComponent(key)}=${encodeURIComponent(item)}`).join('&');
+              } else {
+                return `${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+              }
+            })
+            .join('&');
+        }
+      });
+      console.log('后端完整响应:', response.data);
       const nextArticles = Array.isArray(response.data?.articles)
         ? response.data.articles
         : (Array.isArray(response.data?.data) ? response.data.data : []);
       setArticles(nextArticles);
       setTotal(response.data.total);
+      
+      // 打印后端返回的总数量到console
+      console.log('筛选后后端返回的总数量:', response.data.total);
     } catch (error) {
       console.error('获取文章失败:', error);
       console.error('错误详情:', error.response);
@@ -277,7 +356,7 @@ function ArticleManagement({ filters, dateRange }) {
           <div style={{ display: 'flex', gap: 16, marginBottom: 16 }}>
             <Space>
               <Text type="secondary">公众号:</Text>
-              <Text>{selectedArticle.mp_name || '未知公众号'}</Text>
+              <Text>{selectedArticle.source || selectedArticle.mp_name || '未知公众号'}</Text>
             </Space>
             <Space>
               <Text type="secondary">发布时间:</Text>
@@ -552,7 +631,7 @@ function ArticleManagement({ filters, dateRange }) {
                         )}
                       </div>
                       <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginBottom: 4 }}>
-                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name || '未知公众号'}</span>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.source || article.mp_name || '未知公众号'}</span>
                         <span style={{ fontSize: '11px', color: '#8c8c8c' }}>
                           {article.publish_time 
                             ? typeof article.publish_time === 'number' 
@@ -609,7 +688,7 @@ function ArticleManagement({ filters, dateRange }) {
                           <span style={{ fontSize: '11px', color: '#1890ff' }}>评分: {article.socre}</span>
                           <span style={{ fontSize: '11px', color: '#52c41a' }}>pre: {article.pre_value_score}</span>
                         </Space>
-                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.mp_name || '未知公众号'}</span>
+                        <span style={{ fontSize: '11px', color: '#8c8c8c' }}>{article.source || article.mp_name || '未知公众号'}</span>
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
