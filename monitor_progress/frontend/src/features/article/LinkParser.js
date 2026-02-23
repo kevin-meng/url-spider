@@ -5,7 +5,7 @@ import axios from 'axios';
 const { TextArea } = Input;
 
 // 后端接口地址
-const MONITOR_API_BASE = ''; // 使用相对路径，与当前前端服务同域
+const MONITOR_API_BASE = 'http://localhost:8000'; // 直接使用后端服务地址
 
 const LinkParser = () => {
   const [urls, setUrls] = useState('');
@@ -139,6 +139,67 @@ const LinkParser = () => {
     }
   };
 
+  // 轮询批次任务状态
+  const pollBatchTaskStatus = async (taskId, urlList) => {
+    try {
+      const response = await axios.get(`${MONITOR_API_BASE}/api/task-status/${taskId}`);
+      const taskStatus = response.data;
+
+      // 更新整体进度
+      setCurrentProgress(taskStatus.progress || 0);
+
+      // 如果是批次任务，更新子任务状态
+      if (taskStatus.sub_task_statuses) {
+        const subTaskStatuses = taskStatus.sub_task_statuses || [];
+        
+        // 更新结果列表
+        setResults(prev => {
+          const newResults = [...prev];
+          subTaskStatuses.forEach(subTask => {
+            const existingIndex = newResults.findIndex(item => item.taskId === subTask.task_id);
+            if (existingIndex >= 0) {
+              newResults[existingIndex] = {
+                ...newResults[existingIndex],
+                status: subTask.status === 'completed' ? 'success' : 
+                        subTask.status === 'failed' ? 'error' : 'processing',
+                message: subTask.message,
+                progress: subTask.progress || 0,
+                currentStage: subTask.current_stage,
+                articleId: subTask.result?.article_id,
+                data: subTask.result?.data
+              };
+            }
+          });
+          return newResults;
+        });
+      }
+
+      // 如果任务未完成，继续轮询
+      if (taskStatus.status === 'processing' || taskStatus.status === 'queued') {
+        setTimeout(() => pollBatchTaskStatus(taskId, urlList), 2000);
+      } else {
+        // 任务完成后更新整体进度
+        setCurrentProgress(100);
+        setProcessing(false);
+        
+        // 发送浏览器通知
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('任务完成', {
+            body: `批次任务已完成，共处理 ${urlList.length} 个URL`,
+            icon: '/favicon.ico'
+          });
+        }
+        
+        message.success('处理完成');
+      }
+
+    } catch (error) {
+      console.error('获取任务状态失败:', error);
+      setProcessing(false);
+      message.error('获取任务状态失败');
+    }
+  };
+
   // 处理提交
   const handleSubmit = async () => {
     if (!urls.trim()) {
@@ -155,30 +216,46 @@ const LinkParser = () => {
     setTotalProgress(urlList.length);
 
     try {
-      // 并发处理，每次最多处理3个URL
-      const MAX_CONCURRENT = 3;
-      const batchSize = Math.min(MAX_CONCURRENT, urlList.length);
-      
-      for (let i = 0; i < urlList.length; i += batchSize) {
-        // 获取当前批次的URL
-        const batchUrls = urlList.slice(i, i + batchSize);
-        // 处理当前批次的URL
-        const batchPromises = batchUrls.map((url, batchIndex) => {
-          const globalIndex = i + batchIndex;
-          return processUrl(url.trim(), globalIndex + 1, urlList.length);
-        });
-        
-        // 等待当前批次完成
-        await Promise.all(batchPromises);
+      // 请求通知权限
+      if ('Notification' in window && Notification.permission !== 'denied') {
+        await Notification.requestPermission();
       }
 
-      message.success('处理完成');
+      // 调用批量处理接口
+      const response = await axios.post(`${MONITOR_API_BASE}/api/batch-process-urls`, {
+        urls: urlList,
+        use_llm_summary: useLLMSummary,
+        priority: 'normal'
+      });
+
+      const result = response.data;
+      
+      // 如果返回了task_id，开始轮询任务状态
+      if (result.task_id) {
+        // 为每个URL创建初始结果记录
+        const initialResults = urlList.map(url => ({
+          url,
+          taskId: result.sub_task_ids ? result.sub_task_ids[urlList.indexOf(url)] : null,
+          status: 'queued',
+          message: '任务已加入队列，等待处理',
+          progress: 0,
+          currentStage: '排队中',
+          data: null
+        }));
+        
+        // 添加到结果列表
+        setResults(initialResults);
+        
+        // 开始轮询任务状态
+        setTimeout(() => pollBatchTaskStatus(result.task_id, urlList), 1000);
+      } else {
+        message.error('获取任务ID失败');
+        setProcessing(false);
+      }
     } catch (error) {
-      message.error('处理过程中出现错误');
+      message.error('处理过程中出现错误: ' + (error.message || '未知错误'));
       console.error(error);
-    } finally {
       setProcessing(false);
-      setCurrentProgress(100);
     }
   };
 

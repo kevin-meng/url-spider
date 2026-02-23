@@ -559,7 +559,7 @@ function App() {
   const [articleDateRange, setArticleDateRange] = useState([dayjs().startOf('day'), dayjs().endOf('day')]);
   const [articleFilters, setArticleFilters] = useState({
     scoreType: 'socre',
-    scores: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+    scores: [7, 8, 9, 10],
     tags: undefined,
     isCollected: [true, false],
     isFollowed: [true, false],

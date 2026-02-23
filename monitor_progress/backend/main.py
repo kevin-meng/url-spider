@@ -464,10 +464,30 @@ class ProcessUrlRequest(BaseModel):
     use_llm_summary: bool = False
 
 
+class BatchProcessUrlsRequest(BaseModel):
+    urls: List[str]
+    use_llm_summary: bool = False
+    priority: str = "normal"  # high, normal, low
+    max_concurrency: int = 2
+
+
 # 任务状态管理
 from bson import ObjectId
 import asyncio
-from typing import Dict, Optional
+from typing import Dict, Optional, List, Deque
+from collections import deque
+import threading
+import time
+
+# 全局任务队列和管理变量
+task_queue = deque()  # 任务队列
+task_queue_lock = threading.Lock()  # 队列锁
+running_tasks = set()  # 正在运行的任务
+MAX_CONCURRENT_TASKS = 2  # 最大并发任务数
+task_scheduler_running = False  # 任务调度器运行状态
+
+# 任务优先级映射
+PRIORITY_MAP = {"high": 0, "normal": 1, "low": 2}
 
 
 # 获取任务状态集合
@@ -476,6 +496,139 @@ def get_task_collection():
 
     db = get_mongo_db()
     return db.task_status
+
+
+async def task_scheduler():
+    """任务调度器，负责从队列中取出任务并执行"""
+    global task_scheduler_running, running_tasks
+    task_scheduler_running = True
+
+    print("任务调度器已启动")
+
+    while task_scheduler_running:
+        try:
+            # 检查当前运行的任务数
+            with task_queue_lock:
+                current_running = len(running_tasks)
+
+                # 如果有空闲槽位且队列不为空
+                if current_running < MAX_CONCURRENT_TASKS and task_queue:
+                    # 按优先级取出任务
+                    # 简单实现：遍历队列找到优先级最高的任务
+                    highest_priority = float("inf")
+                    highest_priority_task = None
+
+                    for i, task_info in enumerate(task_queue):
+                        priority = PRIORITY_MAP.get(task_info["priority"], 1)
+                        if priority < highest_priority:
+                            highest_priority = priority
+                            highest_priority_task = (i, task_info)
+
+                    if highest_priority_task:
+                        i, task_info = highest_priority_task
+                        # 从队列中移除任务
+                        task_queue.remove(task_info)
+
+                        # 添加到运行任务集合
+                        running_tasks.add(task_info["task_id"])
+
+                        # 启动任务
+                        asyncio.create_task(process_task_from_queue(task_info))
+
+            # 短暂休眠，避免忙等
+            await asyncio.sleep(1)
+
+        except Exception as e:
+            print(f"任务调度器错误: {e}")
+            await asyncio.sleep(1)
+
+
+async def process_task_from_queue(task_info):
+    """处理从队列中取出的任务"""
+    try:
+        task_id = task_info["task_id"]
+        url = task_info["url"]
+        use_llm_summary = task_info["use_llm_summary"]
+        batch_task_id = task_info.get("batch_task_id")
+
+        # 执行任务
+        await process_url_async(task_id, url, use_llm_summary, batch_task_id)
+
+    except Exception as e:
+        print(f"处理队列任务错误: {e}")
+    finally:
+        # 从运行任务集合中移除
+        with task_queue_lock:
+            if task_info["task_id"] in running_tasks:
+                running_tasks.remove(task_info["task_id"])
+
+
+def update_batch_task_status(batch_task_id: str, sub_task_id: str, status: str):
+    """更新批次任务的状态"""
+    task_collection = get_task_collection()
+
+    try:
+        # 获取批次任务信息
+        batch_task = task_collection.find_one({"task_id": batch_task_id})
+        if not batch_task:
+            return
+
+        batch_info = batch_task.get("batch_info", {})
+        total_urls = batch_info.get("total_urls", 0)
+        processed_urls = batch_info.get("processed_urls", 0)
+        success_count = batch_info.get("success_count", 0)
+        failed_count = batch_info.get("failed_count", 0)
+        sub_tasks = batch_info.get("sub_tasks", [])
+
+        # 更新计数
+        processed_urls += 1
+        if status == "completed":
+            success_count += 1
+        elif status == "failed":
+            failed_count += 1
+
+        # 计算进度
+        progress = int((processed_urls / total_urls) * 100) if total_urls > 0 else 0
+
+        # 检查是否所有任务都已完成
+        if processed_urls >= total_urls:
+            batch_status = "completed"
+            message = f"批次任务已完成，成功: {success_count}, 失败: {failed_count}"
+        else:
+            batch_status = "processing"
+            message = f"批次任务处理中，已完成 {processed_urls}/{total_urls}"
+
+        # 更新批次任务状态
+        task_collection.update_one(
+            {"task_id": batch_task_id},
+            {
+                "$set": {
+                    "status": batch_status,
+                    "progress": progress,
+                    "current_stage": (
+                        "处理中" if processed_urls < total_urls else "完成"
+                    ),
+                    "message": message,
+                    "batch_info": {
+                        "total_urls": total_urls,
+                        "processed_urls": processed_urls,
+                        "success_count": success_count,
+                        "failed_count": failed_count,
+                        "sub_tasks": sub_tasks,
+                    },
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+    except Exception as e:
+        print(f"更新批次任务状态错误: {e}")
+
+
+# 启动任务调度器
+def start_task_scheduler():
+    """启动任务调度器"""
+    asyncio.create_task(task_scheduler())
 
 
 @app.post("/api/process-url")
@@ -495,23 +648,31 @@ async def process_url(request: ProcessUrlRequest):
                 "task_id": task_id,
                 "url": url,
                 "use_llm_summary": use_llm_summary,
-                "status": "processing",
+                "status": "queued",  # 改为排队状态
                 "progress": 0,
-                "current_stage": "初始化",
-                "message": "开始处理URL",
+                "current_stage": "排队中",
+                "message": "任务已加入队列，等待处理",
                 "created_at": datetime.now(),
                 "updated_at": datetime.now(),
             }
         )
 
-        # 启动异步处理任务
-        asyncio.create_task(process_url_async(task_id, url, use_llm_summary))
+        # 将任务添加到队列
+        task_info = {
+            "task_id": task_id,
+            "url": url,
+            "use_llm_summary": use_llm_summary,
+            "priority": "normal",
+        }
+
+        with task_queue_lock:
+            task_queue.append(task_info)
 
         # 返回任务ID，让前端轮询状态
         return {
             "task_id": task_id,
-            "status": "processing",
-            "message": "任务已启动，正在处理中",
+            "status": "queued",
+            "message": "任务已加入队列，等待处理",
             "progress_url": f"/api/task-status/{task_id}",
         }
 
@@ -519,16 +680,119 @@ async def process_url(request: ProcessUrlRequest):
         return {"status": "error", "message": f"任务启动失败: {str(e)}", "data": None}
 
 
-async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
+@app.post("/api/batch-process-urls")
+async def batch_process_urls(request: BatchProcessUrlsRequest):
+    """批量处理URL链接"""
+    try:
+        urls = request.urls
+        use_llm_summary = request.use_llm_summary
+        priority = request.priority
+        max_concurrency = min(request.max_concurrency, 5)  # 限制最大并发数
+
+        # 创建批次任务记录
+        batch_task_id = str(ObjectId())
+        task_collection = get_task_collection()
+
+        # 为批次创建主任务
+        task_collection.insert_one(
+            {
+                "_id": ObjectId(batch_task_id),
+                "task_id": batch_task_id,
+                "url": "batch",
+                "use_llm_summary": use_llm_summary,
+                "status": "queued",
+                "progress": 0,
+                "current_stage": "排队中",
+                "message": f"批次任务已加入队列，包含 {len(urls)} 个URL",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+                "batch_info": {
+                    "total_urls": len(urls),
+                    "processed_urls": 0,
+                    "success_count": 0,
+                    "failed_count": 0,
+                    "sub_tasks": [],
+                },
+            }
+        )
+
+        # 为每个URL创建子任务并添加到队列
+        sub_task_ids = []
+        for url in urls:
+            sub_task_id = str(ObjectId())
+            sub_task_ids.append(sub_task_id)
+
+            # 创建子任务记录
+            task_collection.insert_one(
+                {
+                    "_id": ObjectId(sub_task_id),
+                    "task_id": sub_task_id,
+                    "url": url,
+                    "use_llm_summary": use_llm_summary,
+                    "status": "queued",
+                    "progress": 0,
+                    "current_stage": "排队中",
+                    "message": "任务已加入队列，等待处理",
+                    "created_at": datetime.now(),
+                    "updated_at": datetime.now(),
+                    "batch_task_id": batch_task_id,  # 关联到批次任务
+                }
+            )
+
+            # 将任务添加到队列
+            task_info = {
+                "task_id": sub_task_id,
+                "url": url,
+                "use_llm_summary": use_llm_summary,
+                "priority": priority,
+                "batch_task_id": batch_task_id,
+            }
+
+            with task_queue_lock:
+                task_queue.append(task_info)
+
+        # 更新批次任务的子任务列表
+        task_collection.update_one(
+            {"task_id": batch_task_id},
+            {
+                "$set": {
+                    "batch_info.sub_tasks": sub_task_ids,
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        # 返回批次任务ID，让前端轮询状态
+        return {
+            "task_id": batch_task_id,
+            "status": "queued",
+            "message": f"批次任务已加入队列，包含 {len(urls)} 个URL",
+            "progress_url": f"/api/task-status/{batch_task_id}",
+            "total_urls": len(urls),
+            "sub_task_ids": sub_task_ids,
+        }
+
+    except Exception as e:
+        return {
+            "status": "error",
+            "message": f"批次任务启动失败: {str(e)}",
+            "data": None,
+        }
+
+
+async def process_url_async(
+    task_id: str, url: str, use_llm_summary: bool, batch_task_id: Optional[str] = None
+):
     """异步处理URL链接"""
     task_collection = get_task_collection()
 
     try:
-        # 更新任务状态：检查URL
+        # 更新任务状态：开始处理
         task_collection.update_one(
             {"task_id": task_id},
             {
                 "$set": {
+                    "status": "processing",
                     "progress": 10,
                     "current_stage": "检查URL",
                     "message": "检查URL是否已存在",
@@ -660,6 +924,10 @@ async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
                         },
                     )
 
+                    # 更新批次任务状态
+                    if batch_task_id:
+                        update_batch_task_status(batch_task_id, task_id, "completed")
+
                     return
 
             # 如果不需要生成摘要或已处理过摘要
@@ -684,6 +952,10 @@ async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
                     }
                 },
             )
+
+            # 更新批次任务状态
+            if batch_task_id:
+                update_batch_task_status(batch_task_id, task_id, "completed")
 
             return
 
@@ -813,6 +1085,10 @@ async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
             },
         )
 
+        # 更新批次任务状态
+        if batch_task_id:
+            update_batch_task_status(batch_task_id, task_id, "completed")
+
     except requests.exceptions.RequestException as e:
         task_collection.update_one(
             {"task_id": task_id},
@@ -831,6 +1107,10 @@ async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
                 }
             },
         )
+
+        # 更新批次任务状态
+        if batch_task_id:
+            update_batch_task_status(batch_task_id, task_id, "failed")
     except Exception as e:
         task_collection.update_one(
             {"task_id": task_id},
@@ -849,6 +1129,10 @@ async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
                 }
             },
         )
+
+        # 更新批次任务状态
+        if batch_task_id:
+            update_batch_task_status(batch_task_id, task_id, "failed")
 
 
 @app.get("/api/task-status/{task_id}")
@@ -873,6 +1157,33 @@ async def get_task_status(task_id: str):
             "created_at": task.get("created_at"),
             "updated_at": task.get("updated_at"),
         }
+
+        # 检查是否是批次任务
+        batch_info = task.get("batch_info")
+        if batch_info:
+            # 添加批次任务信息
+            task_data["batch_info"] = batch_info
+
+            # 获取子任务状态
+            sub_tasks = batch_info.get("sub_tasks", [])
+            if sub_tasks:
+                sub_task_statuses = []
+                for sub_task_id in sub_tasks:
+                    sub_task = task_collection.find_one({"task_id": sub_task_id})
+                    if sub_task:
+                        sub_task_statuses.append(
+                            {
+                                "task_id": sub_task.get("task_id"),
+                                "url": sub_task.get("url"),
+                                "status": sub_task.get("status"),
+                                "progress": sub_task.get("progress"),
+                                "current_stage": sub_task.get("current_stage"),
+                                "message": sub_task.get("message"),
+                                "result": sub_task.get("result"),
+                                "updated_at": sub_task.get("updated_at"),
+                            }
+                        )
+                task_data["sub_task_statuses"] = sub_task_statuses
 
         return task_data
 
@@ -1058,6 +1369,23 @@ def get_all_tags(
 
     return {"tags": [{"name": tag["_id"], "count": tag["count"]} for tag in tags]}
 
+
+# 启动任务调度器
+import threading
+
+
+def start_scheduler_in_thread():
+    """在后台线程中启动任务调度器"""
+    import asyncio
+
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(task_scheduler())
+
+
+# 启动后台线程运行任务调度器
+scheduler_thread = threading.Thread(target=start_scheduler_in_thread, daemon=True)
+scheduler_thread.start()
 
 if __name__ == "__main__":
     import uvicorn
