@@ -34,6 +34,7 @@ try:
     Base = declarative_base()
 except Exception as e:
     logger.error(f"MySQL connection failed: {e}")
+
     # Create a mock engine to avoid import errors
     class MockEngine:
         def connect(self):
@@ -42,19 +43,27 @@ except Exception as e:
                     class MockResult:
                         def mappings(self):
                             return []
+
                         def first(self):
                             return None
+
                         def all(self):
                             return []
+
                     return MockResult()
+
                 def __enter__(self):
                     return self
+
                 def __exit__(self, *args, **kwargs):
                     pass
+
             return MockConnection()
+
     engine = MockEngine()
     SessionLocal = None
     Base = None
+
 
 def get_mysql_db():
     if SessionLocal:
@@ -68,7 +77,9 @@ def get_mysql_db():
         class MockDB:
             def close(self):
                 pass
+
         yield MockDB()
+
 
 # MongoDB Setup
 logger.info(f"Connecting to MongoDB at {MONGO_HOST}:{MONGO_PORT}")
@@ -76,12 +87,14 @@ try:
     MONGO_URI = f"mongodb://{MONGO_USER}:{MONGO_PASSWORD}@{MONGO_HOST}:{MONGO_PORT}/"
     mongo_client = MongoClient(MONGO_URI, serverSelectionTimeoutMS=5000)
     # Test connection
-    mongo_client.admin.command('ping')
+    mongo_client.admin.command("ping")
     logger.info("MongoDB connection successful")
     mongo_db = mongo_client[MONGO_DB_NAME]
     articles_collection = mongo_db["articles"]
+    task_status_collection = mongo_db["task_status"]
 except Exception as e:
     logger.error(f"MongoDB connection failed: {e}")
+
     # Create a mock client to avoid import errors
     class MockClient:
         def __getitem__(self, name):
@@ -90,21 +103,37 @@ except Exception as e:
                     class MockCollection:
                         def find(self, *args, **kwargs):
                             return []
+
                         def find_one(self, *args, **kwargs):
                             return None
+
                         def count_documents(self, *args, **kwargs):
                             return 0
+
                         def update_one(self, *args, **kwargs):
                             class MockResult:
                                 matched_count = 0
+
                             return MockResult()
+
+                        def insert_one(self, *args, **kwargs):
+                            class MockInsertResult:
+                                inserted_id = "mock_id"
+
+                            return MockInsertResult()
+
                         def aggregate(self, *args, **kwargs):
                             return []
+
                     return MockCollection()
+
             return MockDB()
+
     mongo_client = MockClient()
     mongo_db = mongo_client[MONGO_DB_NAME]
     articles_collection = mongo_db["articles"]
+    task_status_collection = mongo_db["task_status"]
+
 
 def get_mongo_db():
     return mongo_db

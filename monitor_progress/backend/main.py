@@ -373,16 +373,634 @@ def get_article(article_id: str):
     mongo_db = get_mongo_db()
 
     try:
-        article = articles_collection.find_one(
-            {"_id": ObjectId(article_id)},
-            {"mp_id": 0, "clipper_metadata": 0, "full_content": 0, "full_markdown": 0},
-        )
+        # 获取完整的文章数据，包括所有字段
+        article = articles_collection.find_one({"_id": ObjectId(article_id)})
         if not article:
             raise HTTPException(status_code=404, detail="Article not found")
         article["_id"] = str(article["_id"])
         return article
     except Exception as e:
         raise HTTPException(status_code=404, detail="Article not found")
+
+
+@app.get("/api/check-url")
+def check_url(url: str = Query(..., description="要检查的URL")):
+    """检查URL是否存在于MongoDB数据库中"""
+    try:
+        # 检查URL是否存在
+        existing_article = articles_collection.find_one({"url": url})
+
+        if existing_article:
+            # 检查llm_summary_processed字段
+            llm_summary_processed = existing_article.get("llm_summary_processed", False)
+
+            # 根据llm_summary_processed字段值返回不同的状态
+            if llm_summary_processed:
+                return {
+                    "exists": True,
+                    "message": "URL已存在于数据库中，且已处理摘要",
+                    "article_id": str(existing_article["_id"]),
+                    "llm_summary_processed": True,
+                }
+            else:
+                return {
+                    "exists": True,
+                    "message": "URL已存在于数据库中，但未处理摘要",
+                    "article_id": str(existing_article["_id"]),
+                    "llm_summary_processed": False,
+                }
+        else:
+            return {
+                "exists": False,
+                "message": "URL不存在于数据库中",
+                "llm_summary_processed": False,
+            }
+    except Exception as e:
+        return {
+            "exists": False,
+            "message": f"检查失败: {str(e)}",
+            "llm_summary_processed": False,
+        }
+
+
+# 预处理markdown内容
+
+
+import re
+
+
+def preprocess_markdown(content):
+    """预处理 markdown 内容，去除图片、链接和元数据，节约 token"""
+    if not content:
+        return content
+
+    # 1. 去除元数据（YAML front matter）
+    content = re.sub(r"^---[\s\S]*?---\n", "", content)
+
+    # 2. 去除图片（包括复杂的 SVG 图片）
+    # 匹配 ![]() 格式的图片，包括包含特殊字符的情况
+    content = re.sub(r"!\[.*?\]\([^)]*\)", "", content)
+    # 额外处理可能的残留 SVG 内容（包括 URL 编码的情况）
+    content = re.sub(r"' fill='[^']*'>.*?</svg>", "", content)
+    # 处理 URL 编码的 SVG 残留内容
+    content = re.sub(
+        r"' fill='[^']*'%3E.*?%3C/rect%3E%3C/g%3E%3C/g%3E%3C/svg%3E\)", "", content
+    )
+
+    # 3. 去除链接，保留链接文本
+    # 处理有文本的链接 [text](url) -> text
+    content = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", content)
+    # 处理空文本的链接 []() -> 完全去除
+    content = re.sub(r"\[\]\([^)]+\)", "", content)
+
+    # 4. 去除多余的空白行
+    content = re.sub(r"\n{3,}", "\n\n", content)
+
+    return content
+
+
+class ProcessUrlRequest(BaseModel):
+    url: str
+    use_llm_summary: bool = False
+
+
+# 任务状态管理
+from bson import ObjectId
+import asyncio
+from typing import Dict, Optional
+
+
+# 获取任务状态集合
+def get_task_collection():
+    from database import get_mongo_db
+
+    db = get_mongo_db()
+    return db.task_status
+
+
+@app.post("/api/process-url")
+async def process_url(request: ProcessUrlRequest):
+    """处理单条URL链接，包括检查数据库、抓取文章、生成摘要等完整流程"""
+    try:
+        url = request.url
+        use_llm_summary = request.use_llm_summary
+
+        # 创建任务记录
+        task_id = str(ObjectId())
+        task_collection = get_task_collection()
+
+        task_collection.insert_one(
+            {
+                "_id": ObjectId(task_id),
+                "task_id": task_id,
+                "url": url,
+                "use_llm_summary": use_llm_summary,
+                "status": "processing",
+                "progress": 0,
+                "current_stage": "初始化",
+                "message": "开始处理URL",
+                "created_at": datetime.now(),
+                "updated_at": datetime.now(),
+            }
+        )
+
+        # 启动异步处理任务
+        asyncio.create_task(process_url_async(task_id, url, use_llm_summary))
+
+        # 返回任务ID，让前端轮询状态
+        return {
+            "task_id": task_id,
+            "status": "processing",
+            "message": "任务已启动，正在处理中",
+            "progress_url": f"/api/task-status/{task_id}",
+        }
+
+    except Exception as e:
+        return {"status": "error", "message": f"任务启动失败: {str(e)}", "data": None}
+
+
+async def process_url_async(task_id: str, url: str, use_llm_summary: bool):
+    """异步处理URL链接"""
+    task_collection = get_task_collection()
+
+    try:
+        # 更新任务状态：检查URL
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "progress": 10,
+                    "current_stage": "检查URL",
+                    "message": "检查URL是否已存在",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        # 1. 使用check_url函数检查URL是否已存在
+        check_result = check_url(url)
+
+        # 更新任务状态：处理URL存在的情况
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "progress": 20,
+                    "current_stage": "处理URL",
+                    "message": f"URL状态: {check_result['message']}",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        # 2. 如果URL已存在
+        if check_result["exists"]:
+            # 获取完整的文章数据
+            existing_article = articles_collection.find_one({"url": url})
+
+            # 检查是否需要生成摘要
+            if use_llm_summary and not check_result.get("llm_summary_processed", False):
+                # 更新任务状态：生成摘要
+                task_collection.update_one(
+                    {"task_id": task_id},
+                    {
+                        "$set": {
+                            "progress": 30,
+                            "current_stage": "生成摘要",
+                            "message": "正在生成文章摘要",
+                            "updated_at": datetime.now(),
+                        }
+                    },
+                )
+
+                # 从数据库中获取full_markdown
+                full_markdown = existing_article.get("full_markdown", "")
+                if full_markdown:
+                    # 更新任务状态：预处理markdown
+                    task_collection.update_one(
+                        {"task_id": task_id},
+                        {
+                            "$set": {
+                                "progress": 40,
+                                "current_stage": "预处理",
+                                "message": "正在预处理markdown内容",
+                                "updated_at": datetime.now(),
+                            }
+                        },
+                    )
+
+                    # 预处理markdown
+                    processed_markdown = preprocess_markdown(full_markdown)
+
+                    # 更新任务状态：调用摘要接口
+                    task_collection.update_one(
+                        {"task_id": task_id},
+                        {
+                            "$set": {
+                                "progress": 60,
+                                "current_stage": "调用接口",
+                                "message": "正在调用大模型摘要接口",
+                                "updated_at": datetime.now(),
+                            }
+                        },
+                    )
+
+                    # 调用摘要接口
+                    import requests
+
+                    summary_api_url = "http://192.168.2.18:8013/api/summarize"
+                    summary_response = requests.post(
+                        summary_api_url, json={"markdown_content": processed_markdown}
+                    )
+                    summary_response.raise_for_status()
+                    summary_result = summary_response.json()
+
+                    # 更新任务状态：更新数据库
+                    task_collection.update_one(
+                        {"task_id": task_id},
+                        {
+                            "$set": {
+                                "progress": 80,
+                                "current_stage": "更新数据库",
+                                "message": "正在更新数据库",
+                                "updated_at": datetime.now(),
+                            }
+                        },
+                    )
+
+                    # 更新到数据库
+                    update_data = summary_result
+                    update_data["llm_summary_processed"] = True
+                    update_data["updated_at"] = datetime.now()
+                    articles_collection.update_one(
+                        {"_id": existing_article["_id"]}, {"$set": update_data}
+                    )
+
+                    # 更新现有文章数据
+                    existing_article.update(update_data)
+                    existing_article["_id"] = str(existing_article["_id"])
+
+                    # 更新任务状态：完成
+                    task_collection.update_one(
+                        {"task_id": task_id},
+                        {
+                            "$set": {
+                                "status": "completed",
+                                "progress": 100,
+                                "current_stage": "完成",
+                                "message": "处理完成",
+                                "result": {
+                                    "status": "updated",
+                                    "message": "URL已存在，已更新摘要",
+                                    "article_id": str(existing_article["_id"]),
+                                    "data": existing_article,
+                                },
+                                "updated_at": datetime.now(),
+                            }
+                        },
+                    )
+
+                    return
+
+            # 如果不需要生成摘要或已处理过摘要
+            existing_article["_id"] = str(existing_article["_id"])
+
+            # 更新任务状态：完成
+            task_collection.update_one(
+                {"task_id": task_id},
+                {
+                    "$set": {
+                        "status": "completed",
+                        "progress": 100,
+                        "current_stage": "完成",
+                        "message": "处理完成",
+                        "result": {
+                            "status": "exists",
+                            "message": check_result["message"],
+                            "article_id": str(existing_article["_id"]),
+                            "data": existing_article,
+                        },
+                        "updated_at": datetime.now(),
+                    }
+                },
+            )
+
+            return
+
+        # 3. 如果URL不存在，调用clip接口抓取文章
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "progress": 30,
+                    "current_stage": "抓取文章",
+                    "message": "正在抓取文章内容",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        import requests
+
+        clip_api_url = "http://192.168.2.18:8013/api/clip"
+        clip_response = requests.post(clip_api_url, json={"url": url})
+        clip_response.raise_for_status()
+        clip_result = clip_response.json()
+
+        # 4. 如果需要，调用摘要接口
+        summary_result = None
+        if use_llm_summary and clip_result.get("full_markdown"):
+            # 更新任务状态：预处理markdown
+            task_collection.update_one(
+                {"task_id": task_id},
+                {
+                    "$set": {
+                        "progress": 50,
+                        "current_stage": "预处理",
+                        "message": "正在预处理markdown内容",
+                        "updated_at": datetime.now(),
+                    }
+                },
+            )
+
+            # 预处理markdown
+            processed_markdown = preprocess_markdown(clip_result["full_markdown"])
+
+            # 更新任务状态：生成摘要
+            task_collection.update_one(
+                {"task_id": task_id},
+                {
+                    "$set": {
+                        "progress": 70,
+                        "current_stage": "生成摘要",
+                        "message": "正在调用大模型摘要接口",
+                        "updated_at": datetime.now(),
+                    }
+                },
+            )
+
+            # 调用摘要接口
+            summary_api_url = "http://192.168.2.18:8013/api/summarize"
+            summary_response = requests.post(
+                summary_api_url, json={"markdown_content": processed_markdown}
+            )
+            summary_response.raise_for_status()
+            summary_result = summary_response.json()
+
+        # 5. 构建文章数据
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "progress": 80,
+                    "current_stage": "构建数据",
+                    "message": "正在构建文章数据",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        article_data = {
+            "url": url,
+            "title": clip_result["metadata"].get("title", ""),
+            "source": clip_result["metadata"].get("source", ""),
+            "created_at": clip_result["metadata"].get("created", datetime.now()),
+            "updated_at": datetime.now(),
+            "full_markdown": clip_result.get("full_markdown", ""),
+            "content": clip_result.get("content", ""),
+            "metadata": clip_result.get("metadata", {}),
+            "llm_summary_processed": False,
+        }
+
+        # 添加摘要（如果有）
+        if summary_result:
+            article_data.update(summary_result)
+            article_data["llm_summary_processed"] = True
+
+        # 6. 保存到MongoDB
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "progress": 90,
+                    "current_stage": "保存数据",
+                    "message": "正在保存到数据库",
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+        inserted_result = articles_collection.insert_one(article_data)
+        article_data["_id"] = str(inserted_result.inserted_id)
+
+        # 更新任务状态：完成
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "status": "completed",
+                    "progress": 100,
+                    "current_stage": "完成",
+                    "message": "处理完成",
+                    "result": {
+                        "status": "success",
+                        "message": "处理成功",
+                        "article_id": str(inserted_result.inserted_id),
+                        "data": article_data,
+                    },
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+    except requests.exceptions.RequestException as e:
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "status": "failed",
+                    "progress": 100,
+                    "current_stage": "失败",
+                    "message": f"外部接口调用失败: {str(e)}",
+                    "result": {
+                        "status": "error",
+                        "message": f"外部接口调用失败: {str(e)}",
+                        "data": None,
+                    },
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+    except Exception as e:
+        task_collection.update_one(
+            {"task_id": task_id},
+            {
+                "$set": {
+                    "status": "failed",
+                    "progress": 100,
+                    "current_stage": "失败",
+                    "message": f"处理失败: {str(e)}",
+                    "result": {
+                        "status": "error",
+                        "message": f"处理失败: {str(e)}",
+                        "data": None,
+                    },
+                    "updated_at": datetime.now(),
+                }
+            },
+        )
+
+
+@app.get("/api/task-status/{task_id}")
+async def get_task_status(task_id: str):
+    """获取任务状态"""
+    try:
+        task_collection = get_task_collection()
+        task = task_collection.find_one({"task_id": task_id})
+
+        if not task:
+            return {"status": "error", "message": "任务不存在"}
+
+        # 转换ObjectId为字符串
+        task_data = {
+            "task_id": task.get("task_id"),
+            "url": task.get("url"),
+            "status": task.get("status"),
+            "progress": task.get("progress"),
+            "current_stage": task.get("current_stage"),
+            "message": task.get("message"),
+            "result": task.get("result"),
+            "created_at": task.get("created_at"),
+            "updated_at": task.get("updated_at"),
+        }
+
+        return task_data
+
+    except Exception as e:
+        return {"status": "error", "message": f"获取任务状态失败: {str(e)}"}
+
+
+# 保留原有的同步处理接口，用于兼容
+@app.post("/api/process-url-sync")
+def process_url_sync(request: ProcessUrlRequest):
+    """处理单条URL链接，包括检查数据库、抓取文章、生成摘要等完整流程"""
+    try:
+        url = request.url
+        use_llm_summary = request.use_llm_summary
+
+        # 1. 使用check_url函数检查URL是否已存在
+        check_result = check_url(url)
+
+        # 2. 如果URL已存在
+        if check_result["exists"]:
+            # 获取完整的文章数据
+            existing_article = articles_collection.find_one({"url": url})
+
+            # 检查是否需要生成摘要
+            if use_llm_summary and not check_result.get("llm_summary_processed", False):
+                # 从数据库中获取full_markdown
+                full_markdown = existing_article.get("full_markdown", "")
+                if full_markdown:
+                    # 预处理markdown
+                    processed_markdown = preprocess_markdown(full_markdown)
+
+                    # 调用摘要接口
+                    import requests
+
+                    summary_api_url = "http://192.168.2.18:8013/api/summarize"
+                    summary_response = requests.post(
+                        summary_api_url, json={"markdown_content": processed_markdown}
+                    )
+                    summary_response.raise_for_status()
+                    summary_result = summary_response.json()
+
+                    # 更新到数据库
+                    update_data = summary_result
+                    update_data["llm_summary_processed"] = True
+                    update_data["updated_at"] = datetime.now()
+                    articles_collection.update_one(
+                        {"_id": existing_article["_id"]}, {"$set": update_data}
+                    )
+
+                    # 更新现有文章数据
+                    existing_article.update(update_data)
+                    existing_article["_id"] = str(existing_article["_id"])
+
+                    return {
+                        "status": "updated",
+                        "message": "URL已存在，已更新摘要",
+                        "article_id": str(existing_article["_id"]),
+                        "data": existing_article,
+                    }
+
+            # 如果不需要生成摘要或已处理过摘要
+            existing_article["_id"] = str(existing_article["_id"])
+            return {
+                "status": "exists",
+                "message": check_result["message"],
+                "article_id": str(existing_article["_id"]),
+                "data": existing_article,
+            }
+
+        # 3. 如果URL不存在，调用clip接口抓取文章
+        import requests
+
+        clip_api_url = "http://192.168.2.18:8013/api/clip"
+        clip_response = requests.post(clip_api_url, json={"url": url})
+        clip_response.raise_for_status()
+        clip_result = clip_response.json()
+
+        # 4. 如果需要，调用摘要接口
+        summary_result = None
+        if use_llm_summary and clip_result.get("full_markdown"):
+            # 预处理markdown
+            processed_markdown = preprocess_markdown(clip_result["full_markdown"])
+
+            # 调用摘要接口
+            summary_api_url = "http://192.168.2.18:8013/api/summarize"
+            summary_response = requests.post(
+                summary_api_url, json={"markdown_content": processed_markdown}
+            )
+            summary_response.raise_for_status()
+            summary_result = summary_response.json()
+
+        # 5. 构建文章数据
+        article_data = {
+            "url": url,
+            "title": clip_result["metadata"].get("title", ""),
+            "source": clip_result["metadata"].get("source", ""),
+            "created_at": clip_result["metadata"].get("created", datetime.now()),
+            "updated_at": datetime.now(),
+            "full_markdown": clip_result.get("full_markdown", ""),
+            "content": clip_result.get("content", ""),
+            "metadata": clip_result.get("metadata", {}),
+            "llm_summary_processed": False,
+        }
+
+        # 添加摘要（如果有）
+        if summary_result:
+            article_data.update(summary_result)
+            article_data["llm_summary_processed"] = True
+
+        # 6. 保存到MongoDB
+        inserted_result = articles_collection.insert_one(article_data)
+        article_data["_id"] = str(inserted_result.inserted_id)
+
+        return {
+            "status": "success",
+            "message": "处理成功",
+            "article_id": str(inserted_result.inserted_id),
+            "data": article_data,
+        }
+
+    except requests.exceptions.RequestException as e:
+        return {
+            "status": "error",
+            "message": f"外部接口调用失败: {str(e)}",
+            "data": None,
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"处理失败: {str(e)}", "data": None}
 
 
 @app.put("/api/articles/{article_id}")
