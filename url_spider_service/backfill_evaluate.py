@@ -11,8 +11,9 @@ from database import get_mysql_db, articles_collection
 from services.llm_service import LLMService
 
 BATCH_SIZE = 50
-TARGET_DATE = "2026-02-20"
+TARGET_DATE = "2026-02-23"
 CONCURRENCY = 5
+
 
 async def process_batch(batch_data, llm_service, batch_num):
     batch_to_process = batch_data["items"]
@@ -20,7 +21,10 @@ async def process_batch(batch_data, llm_service, batch_num):
     if not batch_to_process:
         return 0
 
-    llm_input = [{"title": item["title"], "description": item["description"]} for item in batch_to_process]
+    llm_input = [
+        {"title": item["title"], "description": item["description"]}
+        for item in batch_to_process
+    ]
 
     print(f"[批次{batch_num}] 调用LLM评估 {len(llm_input)} 篇文章...")
     evaluation_result = await llm_service.evaluate_articles(llm_input)
@@ -38,13 +42,12 @@ async def process_batch(batch_data, llm_service, batch_num):
                 "updated_at": datetime.now(),
             }
             articles_collection.update_one(
-                {"url": item["url"]},
-                {"$set": update_data},
-                upsert=True
+                {"url": item["url"]}, {"$set": update_data}, upsert=True
             )
 
     print(f"[批次{batch_num}] 完成 {len(batch_to_process)} 篇评估")
     return len(batch_to_process)
+
 
 async def backfill_evaluate_parallel():
     print(f"=== 开始并行批量评估存量文章 (created_at < {TARGET_DATE}) ===")
@@ -65,13 +68,15 @@ async def backfill_evaluate_parallel():
             batch_infos = []
 
             for i in range(CONCURRENCY):
-                query = text(f"""
+                query = text(
+                    f"""
                     SELECT url, title, description, created_at
                     FROM articles
                     WHERE created_at < '{TARGET_DATE}'
                     ORDER BY created_at DESC
                     LIMIT {BATCH_SIZE} OFFSET {offset + i * BATCH_SIZE}
-                """)
+                """
+                )
 
                 result = mysql_db.execute(query)
                 rows = result.fetchall()
@@ -92,15 +97,19 @@ async def backfill_evaluate_parallel():
                         skip_count += 1
                         continue
 
-                    batch_to_process.append({
-                        "url": url,
-                        "title": title,
-                        "description": description,
-                        "created_at": created_at,
-                    })
+                    batch_to_process.append(
+                        {
+                            "url": url,
+                            "title": title,
+                            "description": description,
+                            "created_at": created_at,
+                        }
+                    )
 
                 if batch_to_process:
-                    batch_tasks.append(process_batch({"items": batch_to_process}, llm_service, i + 1))
+                    batch_tasks.append(
+                        process_batch({"items": batch_to_process}, llm_service, i + 1)
+                    )
                     batch_infos.append((i + 1, len(batch_to_process), skip_count))
                 else:
                     batch_infos.append((i + 1, 0, len(rows)))
@@ -135,6 +144,7 @@ async def backfill_evaluate_parallel():
         mysql_db.close()
 
     print(f"=== 全部完成，共处理 {total_processed} 条 ===")
+
 
 if __name__ == "__main__":
     asyncio.run(backfill_evaluate_parallel())

@@ -13,7 +13,7 @@ from services.llm_service import LLMService
 
 # 配置
 CONCURRENCY = 25  # 并发数（提高并发以加快处理速度）
-TARGET_DATE = "2026-02-22"  # 处理在此日期之前的文章
+TARGET_DATE = "2026-02-23"  # 处理在此日期之前的文章
 MAX_LENGTH = 10000  # 内容最大长度
 
 import re

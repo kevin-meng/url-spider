@@ -208,3 +208,39 @@ GET /api/monthly-stats?page=1&page_size=30
 1. Docker 容器日志
 2. 数据库连接状态
 3. 网络连通性
+
+
+
+
+修复 mongo 集合问题
+```
+db('url_spider_db').collection('articles').updateMany(
+  { "article_type": { "$type": "array" } },
+  [
+    {
+      "$set": {
+        "article_type": {
+          "$cond": {
+            "if": { "$gt": [{ "$size": "$article_type" }, 0] },
+            "then": { 
+              "$reduce": {
+                "input": "$article_type",
+                "initialValue": "",
+                "in": {
+                  "$cond": {
+                    "if": { "$gt": ["$$this", "$$value"] },
+                    "then": "$$this",
+                    "else": "$$value"
+                  }
+                }
+              }
+            },
+            "else": ""
+          }
+        }
+      }
+    }
+  ]
+)
+
+```

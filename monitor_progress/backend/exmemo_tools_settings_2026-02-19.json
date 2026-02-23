@@ -1,0 +1,142 @@
+{
+  "llmToken": "sk-cp-RsDimK9SOVyDLUSKUuEeio7M1L9yq79ydrtV_tSA_TM9yvIURS7_WF5Q0LjqaOfF7l__j9f0OpnMDM1gIzCqDNTgvabJB3B12dryFoWzSoOmgHNgUhbhAEU",
+  "llmBaseUrl": "https://api.minimaxi.com",
+  "llmModelName": "MiniMax-M2.5",
+  "llmPrompts": {},
+  "llmDialogEdit": false,
+  "tags": [],
+  "metaIsTruncate": true,
+  "metaMaxTokens": 2000,
+  "metaTruncateMethod": "head_tail",
+  "metaUpdateMethod": "force",
+  "metaDescription": "直接总结文章的核心内容，不要使用'这篇文章'这样的短语，不超过50个字，且与内容使用相同语言回答。 包含文章中核心的 主体，比如（人物,书籍,组织公司,概念实体,地点,事件,产品服务等名词），并将他们用[xxx] 圈出来,比如 [苹果]",
+  "metaTitleEnabled": false,
+  "metaTitlePrompt": "请为这篇文档生成一个简洁明了的标题，不超过10个字，不要使用引号。",
+  "metaEditTimeEnabled": true,
+  "metaEditTimeFormat": "YYYY-MM-DD HH:mm:ss",
+  "selectExcludedFolders": [],
+  "metaTagsFieldName": "tags",
+  "metaDescriptionFieldName": "概要",
+  "metaTitleFieldName": "title",
+  "metaUpdatedFieldName": "modify_u",
+  "metaCreatedFieldName": "modify_c",
+  "metaTagsPrompt": "请提取这篇文章中最合适的不超过五个标签，追加在现有字段后，并使用与内容相同的语言。",
+  "customMetadata": [
+    {
+      "key": "人物",
+      "value": "提取文章中涉及的  人物，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "组织公司",
+      "value": "提取文章中涉及的  组织公司，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "产品服务",
+      "value": "提取文章中涉及的  产品服务，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "概念实体",
+      "value": "提取文章中涉及的  概念实体，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "地点",
+      "value": "提取文章中涉及的 地点，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "事件",
+      "value": "提取文章中涉及的 事件，多个用#开头 ,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "书籍",
+      "value": "提取文章主要内容中涉及的 书籍，多个用,分割若无则为空，只保留核心3个以内",
+      "type": "prompt"
+    },
+    {
+      "key": "相关问题",
+      "value": "文本可回答哪些问题？（可有多个，给出论点和论据），只保留核心的分号分隔",
+      "type": "prompt"
+    },
+    {
+      "key": "原则库",
+      "value": "请基于文章内容，提炼出可供实践的原则。要求：每条原则简洁清晰，具有指导性，数量不超过3条。格式：1. 原则概括 - 解释。”",
+      "type": "prompt"
+    },
+    {
+      "key": "问题库",
+      "value": "“请从文中提取他人犯过的关键错误，并转化为可引以为戒的教训。不超过3条，每条包含： 格式：- 错误：[简述] → 教训：[应避免的做法或原则]”",
+      "type": "prompt"
+    },
+    {
+      "key": "生命之花",
+      "value": "“请将本文核心内容，对应到‘生命之花’的以下1-3个最相关维度，并给出简要推荐理由：  【维度列表】职业发展、财务状况、个人健康、家庭朋友、重要关系、个人成长、娱乐休闲、自我实现。  输出格式：维度名称 - 推荐理由（一句话）。”  说明： 此提示词限定了1-3个最相关维度，能迫使AI进行聚焦提炼，避免泛泛而谈，输出结果将直接、简洁且实用。",
+      "type": "prompt"
+    },
+    {
+      "key": "四精练",
+      "value": "“请从‘思维模型、核心矛盾、行动杠杆点、风险与时机’中，选择1-2个最相关的维度，提炼本文的核心启示。”",
+      "type": "prompt"
+    },
+    {
+      "key": "量化的结论",
+      "value": "“从文章中提取出的核心量化的结论（）。若有，用list展示。”",
+      "type": "prompt"
+    },
+    {
+      "key": "点子库",
+      "value": "你是一位创意提炼助手。我的核心关注领域：\t           \t - 金融风控技能（模型、算法、风险管理） \t - 认知和创业领导力 \t - 变强和自信 \t - 写作《AI提升效率》《向AI学习》《数据挖掘案例》《金融风控大全》书稿 \t - 个人心理成长与终身学习 \t - 会作为我的头马俱乐部演讲内容 \t - 投资机会和投资方法。 请分析以下文章，提取与上述领域相关的“点子”。每个点子需包含： \t - 领域（对应上述之一） \t - 点子标题（一句话概括） \t - 核心内容（文章中的具体信息） \t - 对我的价值（为何有用） \t - 行动建议（如何落地）。 输出格式：每个点子用二级标题（##），后面跟列表。要求强相关、高价值、特别严格。如果无相关领域，则输出“无相关点子”。",
+      "type": "prompt"
+    },
+    {
+      "key": "socre",
+      "value": "聚焦我的核心领域，对这篇文章按照对我价值程度进行1到10分的评分，1最低-10最高，大胆放弃，不要大部分中间分",
+      "type": "prompt"
+    },
+    {
+      "key": "reason",
+      "value": "聚焦我的核心领域，对这篇文章按照对我价值程度进行1到10分的评分，此处给出简短理由",
+      "type": "prompt"
+    }
+  ],
+  "metaCategoryFieldName": "category",
+  "categories": [
+    "旅行",
+    "娱乐",
+    "灵感创意",
+    "方法论",
+    "工作思考",
+    "投资",
+    "健康",
+    "摘录",
+    "世界观",
+    "美食",
+    "金融",
+    "心理学",
+    "个人成长",
+    "科技",
+    "数据挖掘",
+    "AI",
+    "人工智能",
+    "编程",
+    "理财"
+  ],
+  "metaCategoryPrompt": "请为这篇文档选择一个合适的类别",
+  "metaCategoryEnabled": true,
+  "defaultIndexString": "index_",
+  "indexExcludeFile": "",
+  "indexExcludeDir": "",
+  "metaCoverEnabled": false,
+  "metaCoverFieldName": "cover",
+  "metaCoverUrl": "",
+  "metaCoverUseFirst": false,
+  "llmResultMode": "unknown",
+  "insertCardsAt": "before",
+  "regenerateExistingCards": false,
+  "zettelkastenPrompt": "请根据以下笔记内容，生成一个卢曼卡片式的总结，包括：\n1. 主要概念和思想\n2. 与其他概念的联系\n3. 可能的应用场景",
+  "indexFileDirectory": ""
+}

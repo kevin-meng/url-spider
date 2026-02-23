@@ -1,14 +1,44 @@
-from fastapi import FastAPI, Depends, Query, HTTPException, Request
+from fastapi import FastAPI, Depends, Query, HTTPException, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
 from pydantic import BaseModel
 from bson.objectid import ObjectId
+from contextlib import asynccontextmanager
 
 from database import engine, get_mysql_db, get_mongo_db, articles_collection
 
-app = FastAPI(title="微信公众号数据监控系统")
+# Import services from url_spider_service
+from services.clipper_service import ClipperService
+from services.llm_service import LLMService
+
+# Import tasks for manual triggering
+from tasks.task1_fetch import task_fetch_and_evaluate
+from tasks.task2_clip import task_clip_content
+from tasks.task3_summarize import task_summarize_content
+from tasks.task4_stats import task_calculate_stats
+
+# Global services
+clipper_service: Optional[ClipperService] = None
+llm_service: Optional[LLMService] = None
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    global clipper_service, llm_service
+    try:
+        clipper_service = ClipperService()
+        llm_service = LLMService()
+        print("服务初始化完成。")
+    except Exception as e:
+        print(f"服务初始化失败: {e}")
+
+    yield
+
+
+app = FastAPI(title="微信公众号数据监控系统", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -469,6 +499,24 @@ class BatchProcessUrlsRequest(BaseModel):
     use_llm_summary: bool = False
     priority: str = "normal"  # high, normal, low
     max_concurrency: int = 2
+
+
+# url_spider_service Pydantic Models
+class ClipRequest(BaseModel):
+    url: str
+
+
+class SummarizeRequest(BaseModel):
+    markdown_content: str
+
+
+class ArticleItem(BaseModel):
+    title: str
+    description: str
+
+
+class EvaluateRequest(BaseModel):
+    articles: List[ArticleItem]
 
 
 # 任务状态管理
@@ -1193,7 +1241,7 @@ async def get_task_status(task_id: str):
 
 # 保留原有的同步处理接口，用于兼容
 @app.post("/api/process-url-sync")
-def process_url_sync(request: ProcessUrlRequest):
+async def process_url_sync(request: ProcessUrlRequest):
     """处理单条URL链接，包括检查数据库、抓取文章、生成摘要等完整流程"""
     try:
         url = request.url
@@ -1215,15 +1263,10 @@ def process_url_sync(request: ProcessUrlRequest):
                     # 预处理markdown
                     processed_markdown = preprocess_markdown(full_markdown)
 
-                    # 调用摘要接口
-                    import requests
-
-                    summary_api_url = "http://192.168.2.18:8013/api/summarize"
-                    summary_response = requests.post(
-                        summary_api_url, json={"markdown_content": processed_markdown}
+                    # 调用摘要接口（直接使用内部服务）
+                    summary_result = await llm_service.process_content(
+                        processed_markdown
                     )
-                    summary_response.raise_for_status()
-                    summary_result = summary_response.json()
 
                     # 更新到数据库
                     update_data = summary_result
@@ -1253,27 +1296,17 @@ def process_url_sync(request: ProcessUrlRequest):
                 "data": existing_article,
             }
 
-        # 3. 如果URL不存在，调用clip接口抓取文章
-        import requests
+        # 3. 如果URL不存在，调用clip接口抓取文章（直接使用内部服务）
+        clip_result = await clipper_service.process_url(url)
 
-        clip_api_url = "http://192.168.2.18:8013/api/clip"
-        clip_response = requests.post(clip_api_url, json={"url": url})
-        clip_response.raise_for_status()
-        clip_result = clip_response.json()
-
-        # 4. 如果需要，调用摘要接口
+        # 4. 如果需要，调用摘要接口（直接使用内部服务）
         summary_result = None
         if use_llm_summary and clip_result.get("full_markdown"):
             # 预处理markdown
             processed_markdown = preprocess_markdown(clip_result["full_markdown"])
 
-            # 调用摘要接口
-            summary_api_url = "http://192.168.2.18:8013/api/summarize"
-            summary_response = requests.post(
-                summary_api_url, json={"markdown_content": processed_markdown}
-            )
-            summary_response.raise_for_status()
-            summary_result = summary_response.json()
+            # 调用摘要接口（直接使用内部服务）
+            summary_result = await llm_service.process_content(processed_markdown)
 
         # 5. 构建文章数据
         article_data = {
@@ -1386,6 +1419,94 @@ def start_scheduler_in_thread():
 # 启动后台线程运行任务调度器
 scheduler_thread = threading.Thread(target=start_scheduler_in_thread, daemon=True)
 scheduler_thread.start()
+
+
+# --- url_spider_service Endpoints ---
+
+
+@app.post("/api/clip")
+async def clip_url(request: ClipRequest):
+    if not clipper_service:
+        raise HTTPException(status_code=503, detail="Clipper 服务未初始化")
+
+    result = await clipper_service.process_url(request.url)
+    if "error" in result:
+        raise HTTPException(status_code=500, detail=result["error"])
+
+    return result
+
+
+@app.post("/api/summarize")
+async def summarize_content(request: SummarizeRequest):
+    if not llm_service:
+        raise HTTPException(status_code=503, detail="LLM 服务未初始化")
+
+    result = await llm_service.process_content(request.markdown_content)
+    return result
+
+
+@app.post("/api/evaluate")
+async def evaluate_articles(request: EvaluateRequest):
+    if not llm_service:
+        raise HTTPException(status_code=503, detail="LLM 服务未初始化")
+
+    # Convert Pydantic models to dicts
+    articles_data = [article.model_dump() for article in request.articles]
+    result = await llm_service.evaluate_articles(articles_data)
+    return result
+
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+
+# --- Trigger Endpoints for QingLong ---
+
+
+@app.post("/api/trigger/task1")
+async def trigger_task1(background_tasks: BackgroundTasks):
+    """手动触发任务 1：获取并评估文章"""
+    background_tasks.add_task(task_fetch_and_evaluate)
+    return {
+        "status": "triggered",
+        "task": "fetch_and_evaluate",
+        "message": "任务已在后台启动",
+    }
+
+
+@app.post("/api/trigger/task2")
+async def trigger_task2(background_tasks: BackgroundTasks):
+    """手动触发任务 2：剪藏内容"""
+    background_tasks.add_task(task_clip_content)
+    return {
+        "status": "triggered",
+        "task": "clip_content",
+        "message": "任务已在后台启动",
+    }
+
+
+@app.post("/api/trigger/task3")
+async def trigger_task3(background_tasks: BackgroundTasks):
+    """手动触发任务 3：总结内容"""
+    background_tasks.add_task(task_summarize_content)
+    return {
+        "status": "triggered",
+        "task": "summarize_content",
+        "message": "任务已在后台启动",
+    }
+
+
+@app.post("/api/trigger/task4")
+async def trigger_task4(background_tasks: BackgroundTasks):
+    """手动触发任务 4：计算统计数据"""
+    background_tasks.add_task(task_calculate_stats)
+    return {
+        "status": "triggered",
+        "task": "calculate_stats",
+        "message": "任务已在后台启动",
+    }
+
 
 if __name__ == "__main__":
     import uvicorn

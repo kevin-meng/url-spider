@@ -223,6 +223,17 @@ def calculate_heatmap_stats(target_date, score_type):
         score = min(10, max(0, int(article.get(score_type, 0))))
         article_type = article.get("article_type", "")
 
+        # 处理 article_type 可能是列表的情况
+        if isinstance(article_type, list):
+            # 如果是列表，先排序，然后取最后一个元素
+            if article_type:
+                # 排序列表
+                sorted_types = sorted(article_type)
+                # 取最后一个元素
+                article_type = sorted_types[-1]
+            else:
+                article_type = ""
+
         if article_type:
             key = (article_type, score)
             score_distribution[key] = score_distribution.get(key, 0) + 1

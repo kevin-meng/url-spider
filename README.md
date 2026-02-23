@@ -52,7 +52,12 @@ docker-compose logs -f
 
 ### 1. 激活虚拟环境
 ```bash
+cd /Users/kevin/obsidian_notes/url_spider/new && python3 -m venv venv
+
 source /Users/kevin/obsidian_notes/url_spider/new/venv/bin/activate
+
+pip install -r requirements.txt
+playwright install
 ```
 
 ### 2. 运行定时任务
