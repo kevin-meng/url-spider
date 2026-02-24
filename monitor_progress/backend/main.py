@@ -1348,11 +1348,12 @@ async def process_url_sync(request: ProcessUrlRequest):
 
 
 @app.put("/api/articles/{article_id}")
-def update_article(article_id: str, article_update: ArticleUpdate):
+async def update_article(article_id: str, request: Request):
     mongo_db = get_mongo_db()
 
     try:
-        update_data = {k: v for k, v in article_update.dict().items() if v is not None}
+        # 直接从请求体获取数据
+        update_data = await request.json()
         update_data["updated_at"] = datetime.now()
 
         result = articles_collection.update_one(
