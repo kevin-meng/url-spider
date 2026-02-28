@@ -11,7 +11,7 @@ from database import get_mysql_db, articles_collection
 from services.llm_service import LLMService
 
 BATCH_SIZE = 50
-TARGET_DATE = "2026-02-23"
+TARGET_DATE = "2026-02-25"
 CONCURRENCY = 5
 
 

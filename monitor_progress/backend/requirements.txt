@@ -16,3 +16,4 @@ openai
 anthropic
 apscheduler
 pandas
+lark-oapi

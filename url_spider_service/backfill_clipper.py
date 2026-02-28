@@ -14,7 +14,7 @@ from services.clipper_service import ClipperService
 # 配置
 CONCURRENCY_CLIPPER = 10  # 剪藏并发数
 BATCH_SIZE = 50  # 每次从 MySQL 获取的文章数量
-TARGET_DATE = "2026-02-23"  # 处理在此日期之前的文章
+TARGET_DATE = "2026-02-24"  # 处理在此日期之前的文章
 
 
 async def process_article(article, clipper_service, clip_sem):

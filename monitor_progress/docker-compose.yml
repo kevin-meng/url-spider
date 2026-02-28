@@ -21,6 +21,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+      - ./backend:/app
     ports:
       - "8013:8000"
     networks:
@@ -36,6 +37,7 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - /etc/timezone:/etc/timezone:ro
+      - ./frontend:/app
     ports:
       - "3013:80"
     depends_on:

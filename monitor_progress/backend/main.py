@@ -18,6 +18,7 @@ from tasks.task1_fetch import task_fetch_and_evaluate
 from tasks.task2_clip import task_clip_content
 from tasks.task3_summarize import task_summarize_content
 from tasks.task4_stats import task_calculate_stats
+from tasks.task5_feishu import task_sync_to_feishu
 
 # Global services
 clipper_service: Optional[ClipperService] = None
@@ -1354,9 +1355,10 @@ async def update_article(article_id: str, request: Request):
     try:
         # 直接从请求体获取数据
         import json
+
         body = await request.body()
         if isinstance(body, bytes):
-            body = body.decode('utf-8')
+            body = body.decode("utf-8")
         update_data = json.loads(body)
         update_data["updated_at"] = datetime.now()
 
@@ -1509,6 +1511,17 @@ async def trigger_task4(background_tasks: BackgroundTasks):
     return {
         "status": "triggered",
         "task": "calculate_stats",
+        "message": "任务已在后台启动",
+    }
+
+
+@app.post("/api/trigger/task5")
+async def trigger_task5(background_tasks: BackgroundTasks):
+    """手动触发任务 5：同步文章到飞书多维表格"""
+    background_tasks.add_task(task_sync_to_feishu)
+    return {
+        "status": "triggered",
+        "task": "sync_to_feishu",
         "message": "任务已在后台启动",
     }
 
