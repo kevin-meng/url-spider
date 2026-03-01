@@ -296,11 +296,24 @@ class ClipperService:
             browser = await p.chromium.launch(
                 headless=True, args=["--disable-blink-features=AutomationControlled"]
             )
+            # Check for proxy settings from environment variables
+            proxy_settings = None
+            http_proxy = os.environ.get("HTTP_PROXY") or os.environ.get("http_proxy")
+            https_proxy = os.environ.get("HTTPS_PROXY") or os.environ.get("https_proxy")
+            
+            if http_proxy:
+                print(f"Using HTTP Proxy: {http_proxy}")
+                proxy_settings = {"server": http_proxy}
+            elif https_proxy:
+                print(f"Using HTTPS Proxy: {https_proxy}")
+                proxy_settings = {"server": https_proxy}
+
             context = await browser.new_context(
                 user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
                 viewport={"width": 1920, "height": 1080},
                 locale="zh-CN",
                 timezone_id="Asia/Shanghai",
+                proxy=proxy_settings
             )
             page = await context.new_page()
 
